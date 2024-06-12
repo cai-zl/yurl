@@ -23,25 +23,35 @@ impl Template {
         let expressions = Expression::parse_from_yaml(yaml)?;
         let template: Template = serde_yaml::from_str(yaml)?;
         let functions = function::Function::functions();
+        let mut content = String::from(yaml);
         for expression in expressions {
             match Expression::parse(&expression)? {
                 Expression::Variable(e) => {
                     let key = Expression::variable_parse(&e)?;
-                    _ = yaml.replace(&expression, template.vars.get(&key).unwrap());
+                    match template.vars.get(&key) {
+                        Some(v) => {
+                            let temp_content = content.replace(&expression, v);
+                            content.clear();
+                            content.push_str(&temp_content);
+                        }
+                        None => { return Err(Box::new(YurlError::new(&format!("undefined variable: {}", key)))); }
+                    }
                 }
                 Expression::Function(e) => {
                     let key = Expression::function_parse(&e)?;
                     match functions.get(&key) {
-                        None => { return Err(Box::new(YurlError::new(&format!("undefined function: {}", key)))); }
                         Some(f) => {
-                            _ = yaml.replace(&expression, &(f.fun)());
+                            let temp_content = content.replace(&expression, &(f.fun)());
+                            content.clear();
+                            content.push_str(&temp_content);
                         }
+                        None => { return Err(Box::new(YurlError::new(&format!("undefined function: {}", key)))); }
                     }
                 }
                 Expression::Response(e) => {}
             }
         }
-        let template: Template = serde_yaml::from_str(yaml)?;
+        let template: Template = serde_yaml::from_str(&content)?;
         Ok(template)
     }
 }

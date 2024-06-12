@@ -1,4 +1,5 @@
 use std::error::Error;
+use colored::Colorize;
 
 use yurl::cmd::{Commands, Execute};
 
@@ -8,13 +9,19 @@ fn main() -> Result<(), Box<dyn Error>> {
         Commands::Run(arg) => {
             match arg.run() {
                 Ok(()) => {}
-                Err(e) => {println!("{}",e.to_string())}
+                Err(e) => { println!("{}", e.to_string().red()) }
             }
         }
         Commands::Function(arg) => {
             match arg.run() {
                 Ok(()) => {}
-                Err(e) => {println!("{}",e.to_string())}
+                Err(e) => { println!("{}", e.to_string().red()) }
+            }
+        }
+        Commands::Generate(arg) => {
+            match arg.run() {
+                Ok(()) => {}
+                Err(e) => { println!("{}", e.to_string().red()) }
             }
         }
     }

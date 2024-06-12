@@ -20,26 +20,21 @@ impl Expression {
         let mut expressions = Vec::new();
         let mut expression = String::new();
         let mut head = false;
-        loop {
-            match chars.pop() {
-                Some(c) => {
-                    if c == '$' {
-                        expression.push(c);
-                    }
-                    if expression.len() == 1 && c == '{' {
-                        head = true;
-                    }
-                    if c == '}' && head {
-                        expression.push(c);
-                        head = false;
-                        expressions.push(expression.to_string());
-                        expression.clear();
-                    }
-                    if head {
-                        expression.push(c)
-                    }
-                }
-                None => { break; }
+        for c in chars {
+            if c == '$' {
+                expression.push(c);
+            }
+            if expression.len() == 1 && c == '{' {
+                head = true;
+            }
+            if c == '}' && head {
+                expression.push(c);
+                head = false;
+                expressions.push(expression.to_string());
+                expression.clear();
+            }
+            if head {
+                expression.push(c)
             }
         }
         Ok(expressions)
@@ -49,9 +44,9 @@ impl Expression {
         if expression.starts_with("${")
             && expression.ends_with("}") {
             return match &expression[2..5] {
-                "var" => { Ok(Expression::Variable(expression[2..expression.len()].to_string())) }
-                "fun" => { Ok(Expression::Function(expression[2..expression.len()].to_string())) }
-                "res" => { Ok(Expression::Response(expression[2..expression.len()].to_string())) }
+                "var" => { Ok(Expression::Variable(expression[2..expression.len() - 1].to_string())) }
+                "fun" => { Ok(Expression::Function(expression[2..expression.len() - 1].to_string())) }
+                "res" => { Ok(Expression::Response(expression[2..expression.len() - 1].to_string())) }
                 _ => { Err(Box::new(YurlError::new("not supported expression type"))) }
             };
         }

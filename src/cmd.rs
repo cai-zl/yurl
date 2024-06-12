@@ -21,10 +21,12 @@ impl Cli {
 
 #[derive(Debug, Subcommand)]
 pub enum Commands {
-    #[command(arg_required_else_help = true)]
+    #[command(arg_required_else_help = true, short_flag = 'r')]
     Run(run::RunArg),
-    #[command(name = "fun", subcommand_required = true)]
+    #[command(name = "function", subcommand_required = true, long_flag = "fun", short_flag = 'f')]
     Function(function::FunctionArg),
+    #[command(name = "generate", arg_required_else_help = true, long_flag = "gen", short_flag = 'g')]
+    Generate(generate::GenerateArg),
 }
 
 pub trait Execute {

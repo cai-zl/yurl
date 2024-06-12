@@ -11,7 +11,7 @@ use super::Execute;
 
 #[derive(Tabled)]
 struct Item<'a> {
-    name: &'a str,
+    key: &'a str,
     about: &'a str,
     result: String,
 }
@@ -47,8 +47,11 @@ impl Execute for FunctionArg {
 
 #[derive(Debug, Subcommand)]
 pub enum FunctionCommands {
+    #[command(short_flag = 'l')]
     List(ListArg),
+    #[command(short_flag = 'c')]
     Call(CallArg),
+    #[command(short_flag = 's')]
     Search(SearchArg),
 }
 
@@ -62,7 +65,7 @@ impl Execute for ListArg {
         let fs = Function::functions();
         let items: Vec<Item> = fs.values().map(|i| {
             Item {
-                name: &i.name,
+                key: &i.key,
                 about: &i.about,
                 result: (i.fun)(),
             }
@@ -106,7 +109,7 @@ impl Execute for SearchArg {
         let mut items = Vec::new();
         for (k, v) in fs.iter() {
             if k.contains(&key) {
-                items.push(Item { name: &v.name, about: &v.about, result: (v.fun)() });
+                items.push(Item { key: &v.key, about: &v.about, result: (v.fun)() });
             }
         }
         let table = Table::new(items).to_string();

@@ -3,7 +3,7 @@ use std::collections::HashMap;
 type Fun = fn() -> String;
 
 pub struct Function {
-    pub name: String,
+    pub key: String,
     pub about: String,
     pub fun: Fun,
 }
@@ -11,10 +11,10 @@ pub struct Function {
 impl Function {
     pub fn functions() -> HashMap<String, Function> {
         let mut functions = HashMap::new();
-        let uuid = Function { name: "uuid".to_string(), about: "hello yurl".to_string(), fun: || { String::from("uuid") } };
-        let uid = Function { name: "uid".to_string(), about: "hello yurl".to_string(), fun: || { String::from("uid") } };
-        functions.insert(uuid.name.clone(), uuid);
-        functions.insert(uid.name.clone(), uid);
+        let uuid = Function { key: "uuid".to_string(), about: "hello yurl".to_string(), fun: || { String::from("uuid") } };
+        let uid = Function { key: "uid".to_string(), about: "hello yurl".to_string(), fun: || { String::from("uid") } };
+        functions.insert(uuid.key.clone(), uuid);
+        functions.insert(uid.key.clone(), uid);
         functions
     }
 }
