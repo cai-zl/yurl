@@ -26,8 +26,8 @@ impl Template {
         let mut content = String::from(yaml);
         for expression in expressions {
             match Expression::parse(&expression)? {
-                Expression::Variable(e) => {
-                    let key = Expression::variable_parse(&e)?;
+                Expression::Variable(expr) => {
+                    let key = Expression::variable_parse(&expr)?;
                     match template.vars.get(&key) {
                         Some(v) => {
                             let temp_content = content.replace(&expression, v);
@@ -37,8 +37,8 @@ impl Template {
                         None => { return Err(Box::new(YurlError::new(&format!("undefined variable: {}", key)))); }
                     }
                 }
-                Expression::Function(e) => {
-                    let key = Expression::function_parse(&e)?;
+                Expression::Function(expr) => {
+                    let key = Expression::function_parse(&expr)?;
                     match functions.get(&key) {
                         Some(f) => {
                             let temp_content = content.replace(&expression, &(f.fun)());
@@ -48,7 +48,7 @@ impl Template {
                         None => { return Err(Box::new(YurlError::new(&format!("undefined function: {}", key)))); }
                     }
                 }
-                Expression::Response(e) => {}
+                Expression::Response(expr) => {}
             }
         }
         let template: Template = serde_yaml::from_str(&content)?;

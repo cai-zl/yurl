@@ -25,7 +25,7 @@ pub enum Commands {
     Run(run::RunArg),
     #[command(name = "function", subcommand_required = true, long_flag = "fun", short_flag = 'f')]
     Function(function::FunctionArg),
-    #[command(name = "generate", arg_required_else_help = true, long_flag = "gen", short_flag = 'g')]
+    #[command(name = "generate", long_flag = "gen", short_flag = 'g')]
     Generate(generate::GenerateArg),
 }
 
