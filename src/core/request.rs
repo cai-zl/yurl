@@ -115,13 +115,7 @@ impl PartialOrd<Self> for Request {
 
 impl Ord for Request {
     fn cmp(&self, other: &Self) -> Ordering {
-        if self.order == other.order {
-            Ordering::Equal
-        } else if self.order > other.order {
-            Ordering::Greater
-        } else {
-            Ordering::Less
-        }
+        self.order.cmp(&other.order)
     }
 }
 
