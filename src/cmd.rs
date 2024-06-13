@@ -1,9 +1,10 @@
+use std::error::Error;
+
+use clap::{Parser, Subcommand};
+
 pub mod run;
 pub mod function;
 pub mod generate;
-
-use std::error::Error;
-use clap::{Parser, Subcommand};
 
 #[derive(Debug, Parser)]
 #[command(name = "yurl", subcommand_required = true)]

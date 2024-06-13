@@ -2,8 +2,8 @@ use std::collections::HashMap;
 use std::error::Error;
 
 use serde::{Deserialize, Serialize};
-use crate::core::error::YurlError;
 
+use crate::core::error::YurlError;
 use crate::core::expression::Expression;
 use crate::core::request::Request;
 

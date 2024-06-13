@@ -3,6 +3,8 @@ use std::error::Error;
 use clap::{Args, Subcommand};
 use colored::Colorize;
 use tabled::{Table, Tabled};
+use tabled::builder::Builder;
+use tabled::settings::Style;
 
 use crate::core::error::YurlError;
 use crate::core::function::Function;
@@ -10,7 +12,7 @@ use crate::core::function::Function;
 use super::Execute;
 
 #[derive(Tabled)]
-struct Item<'a> {
+struct FunctionItem<'a> {
     key: &'a str,
     about: &'a str,
     result: String,
@@ -63,14 +65,14 @@ pub struct ListArg {}
 impl Execute for ListArg {
     fn run(self) -> Result<(), Box<dyn Error>> {
         let fs = Function::functions();
-        let items: Vec<Item> = fs.values().map(|i| {
-            Item {
+        let items: Vec<FunctionItem> = fs.values().map(|i| {
+            FunctionItem {
                 key: &i.key,
                 about: &i.about,
                 result: (i.fun)(),
             }
         }).collect();
-        let table = Table::new(items).to_string();
+        let mut table = Builder::from(Table::new(items)).build().with(Style::rounded()).to_string();
         println!("{}", table.green());
         Ok(())
     }
@@ -109,10 +111,10 @@ impl Execute for SearchArg {
         let mut items = Vec::new();
         for (k, v) in fs.iter() {
             if k.contains(&key) {
-                items.push(Item { key: &v.key, about: &v.about, result: (v.fun)() });
+                items.push(FunctionItem { key: &v.key, about: &v.about, result: (v.fun)() });
             }
         }
-        let table = Table::new(items).to_string();
+        let mut table = Builder::from(Table::new(items)).build().with(Style::rounded()).to_string();
         Ok(println!("{}", table.green()))
     }
 }

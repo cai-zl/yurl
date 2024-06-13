@@ -1,5 +1,7 @@
+use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::error::Error;
+use std::fmt::{Display, Write};
 
 use reqwest::blocking::{Body, Client};
 use reqwest::Url;
@@ -10,7 +12,7 @@ use crate::core::error::YurlError;
 
 const CONTENT_TYPE_KEY: &str = "Content-Type";
 const CONTENT_TYPE_JSON: &str = "application/json";
-const CONTENT_TYPE_FROM: &str = "multipart/form-data; boundary=<calculated when request is sent>";
+const CONTENT_TYPE_FROM: &str = "application/x-www-form-urlencoded";
 const CONTENT_TYPE_URL: &str = "application/x-www-form-urlencoded";
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
@@ -23,41 +25,6 @@ pub struct Request {
     pub params: HashMap<String, String>,
     pub content_type: ContentType,
     pub response_type: ResponseType,
-}
-
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
-pub enum Method {
-    GET,
-    POST,
-    PUT,
-    DELETE,
-}
-
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
-pub enum ContentType {
-    URLENCODED,
-    FORM,
-    JSON,
-    FILE,
-}
-
-impl ContentType {
-    pub fn to_kv(&self) -> (&'static str, &'static str) {
-        match &self {
-            ContentType::URLENCODED => { (CONTENT_TYPE_KEY, CONTENT_TYPE_URL) }
-            ContentType::JSON => { (CONTENT_TYPE_KEY, CONTENT_TYPE_JSON) }
-            ContentType::FORM => { (CONTENT_TYPE_KEY, CONTENT_TYPE_FROM) }
-            ContentType::FILE => { (CONTENT_TYPE_KEY, CONTENT_TYPE_FROM) }
-        }
-    }
-}
-
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
-pub enum ResponseType {
-    TEXT,
-    JSON,
-    HTML,
-    FILE,
 }
 
 impl Request {
@@ -136,4 +103,59 @@ impl Request {
         }
         Ok(request)
     }
+}
+
+impl Eq for Request {}
+
+impl PartialOrd<Self> for Request {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(Self::cmp(self, other))
+    }
+}
+
+impl Ord for Request {
+    fn cmp(&self, other: &Self) -> Ordering {
+        if self.order == other.order {
+            Ordering::Equal
+        } else if self.order > other.order {
+            Ordering::Greater
+        } else {
+            Ordering::Less
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+pub enum Method {
+    GET,
+    POST,
+    PUT,
+    DELETE,
+}
+
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+pub enum ContentType {
+    URLENCODED,
+    FORM,
+    JSON,
+    FILE,
+}
+
+impl ContentType {
+    pub fn to_kv(&self) -> (&'static str, &'static str) {
+        match &self {
+            ContentType::URLENCODED => { (CONTENT_TYPE_KEY, CONTENT_TYPE_URL) }
+            ContentType::JSON => { (CONTENT_TYPE_KEY, CONTENT_TYPE_JSON) }
+            ContentType::FORM => { (CONTENT_TYPE_KEY, CONTENT_TYPE_FROM) }
+            ContentType::FILE => { (CONTENT_TYPE_KEY, CONTENT_TYPE_FROM) }
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+pub enum ResponseType {
+    TEXT,
+    JSON,
+    HTML,
+    FILE,
 }

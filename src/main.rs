@@ -1,4 +1,5 @@
 use std::error::Error;
+
 use colored::Colorize;
 
 use yurl::cmd::{Commands, Execute};
