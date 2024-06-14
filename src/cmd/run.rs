@@ -184,7 +184,6 @@ impl<'a> ResponseJson<'a> {
                 None => { break; }
             }
         }
-        dbg!(&self.value);
         return match self.value {
             None => { Err(Box::new(YurlError::new("response expression parse error."))) }
             Some(v) => { Ok(v) }
