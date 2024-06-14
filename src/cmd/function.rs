@@ -72,7 +72,7 @@ impl Execute for ListArg {
                 result: (i.fun)(),
             }
         }).collect();
-        let mut table = Builder::from(Table::new(items)).build().with(Style::rounded()).to_string();
+        let table = Builder::from(Table::new(items)).build().with(Style::rounded()).to_string();
         println!("{}", table.green());
         Ok(())
     }
@@ -114,7 +114,7 @@ impl Execute for SearchArg {
                 items.push(FunctionItem { key: &v.key, about: &v.about, result: (v.fun)() });
             }
         }
-        let mut table = Builder::from(Table::new(items)).build().with(Style::rounded()).to_string();
+        let table = Builder::from(Table::new(items)).build().with(Style::rounded()).to_string();
         Ok(println!("{}", table.green()))
     }
 }

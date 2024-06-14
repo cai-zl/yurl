@@ -1,7 +1,6 @@
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::error::Error;
-use std::fmt::{Display, Write};
 
 use reqwest::blocking::{Body, Client};
 use reqwest::Url;
@@ -25,6 +24,8 @@ pub struct Request {
     pub params: HashMap<String, String>,
     pub content_type: ContentType,
     pub response_type: ResponseType,
+    #[serde(skip)]
+    pub response: Option<String>,
 }
 
 impl Request {
@@ -66,7 +67,7 @@ impl Request {
         headers.insert(self.content_type.to_kv().0, self.content_type.to_kv().1.parse()?);
         match self.content_type {
             ContentType::URLENCODED => {
-                let mut url = request.url_mut();
+                let url = request.url_mut();
                 for (k, v) in self.params.iter() {
                     let mut query = String::new();
                     query.push_str(k);

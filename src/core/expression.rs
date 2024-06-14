@@ -1,5 +1,4 @@
 use std::error::Error;
-use std::fmt::{Debug, Display};
 
 use crate::core::error::YurlError;
 
@@ -9,14 +8,15 @@ pub enum Expression {
     Response(String),
 }
 
-pub struct Response {
+#[derive(Debug)]
+pub struct ResponseExpression {
     pub parent: String,
     pub path: String,
 }
 
 impl Expression {
-    pub fn parse_from_yaml(yaml: &str) -> Result<Vec<String>, Box<dyn Error>> {
-        let mut chars: Vec<char> = yaml.chars().collect();
+    pub fn parse_from_str(str: &str) -> Result<Vec<String>, Box<dyn Error>> {
+        let chars: Vec<char> = str.chars().collect();
         let mut expressions = Vec::new();
         let mut expression = String::new();
         let mut head = false;
@@ -69,12 +69,12 @@ impl Expression {
         Ok(keys.get(1).unwrap().to_string())
     }
 
-    pub fn response_parse(expression: &str) -> Result<Response, Box<dyn Error>> {
+    pub fn response_parse(expression: &str) -> Result<ResponseExpression, Box<dyn Error>> {
         let keys: Vec<&str> = expression.split(".").collect();
-        if keys.len() > 3 {
+        if keys.len() < 3 {
             return Err(Box::new(YurlError::new("response expression formatting error")));
         }
-        Ok(Response {
+        Ok(ResponseExpression {
             parent: keys.get(1).unwrap().to_string(),
             path: keys.get(2).unwrap().to_string(),
         })

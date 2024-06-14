@@ -5,10 +5,15 @@ use std::fs;
 
 use clap::Args;
 use colored::Colorize;
+use serde_json::Value;
 use tabled::{Table, Tabled};
 use tabled::builder::Builder;
 use tabled::settings::Style;
 
+use crate::core::error::YurlError;
+use crate::core::expression::Expression;
+use crate::core::function::Function;
+use crate::core::request::Request;
 use crate::core::Template;
 
 use super::Execute;
@@ -22,27 +27,46 @@ pub struct RunArg {
     pub pretty: bool,
 }
 
+struct ExpressionValue<'a> {
+    variables: &'a HashMap<String, String>,
+    functions: HashMap<String, Function>,
+    responses: HashMap<&'a str, &'a Request>,
+}
+
 impl Execute for RunArg {
     fn run(self) -> Result<(), Box<dyn Error>> {
         let content = fs::read_to_string(self.file)?;
-        let mut t = Template::from_to_yaml(&content)?;
-        t.requests.sort();
-        let mut responses: HashMap<String, RequestItem> = HashMap::new();
-        for request in t.requests.iter() {
-            let res = request.run()?;
-            let item = RequestItem {
-                order: request.order,
-                name: format!("{}", request.name),
-                method: format!("{:?}", request.method),
-                url: format!("{}", request.url),
-                params: format!("{:?}", request.params),
-                headers: format!("{:?}", request.headers),
-                response: format!("{}", res),
-            };
-            responses.insert(item.name.to_string(), item);
+        let mut template = Template::from_to_yaml(&content)?;
+        template.requests.sort();
+        {
+            let mut ev = ExpressionValue { variables: &template.vars, functions: Function::functions(), responses: Default::default() };
+            template.requests.iter_mut().for_each(|request| {
+                // parse url
+                _ = parse(&ev, &mut request.url);
+                // parse params
+                &request.params.iter_mut().for_each(|(_, v)| {
+                    _ = parse(&ev, v);
+                });
+                // parse headers
+                &request.headers.iter_mut().for_each(|(_, v)| {
+                    _ = parse(&ev, v);
+                });
+                let res = request.run().unwrap();
+                request.response = Some(res);
+                ev.responses.insert(&request.name, request);
+            });
         }
-        let mut items: Vec<&RequestItem> = responses.values().collect();
-        items.sort();
+        let items: Vec<RequestItem> = template.requests.iter().map(|m| {
+            RequestItem {
+                order: m.order,
+                name: format!("{}", m.name),
+                method: format!("{:?}", m.method),
+                url: format!("{}", m.url),
+                params: format!("{:?}", m.params),
+                headers: format!("{:?}", m.headers),
+                response: m.response.clone().unwrap_or(String::new()),
+            }
+        }).collect();
         if self.pretty {
             let table = Builder::from(Table::new(items)).build().with(Style::rounded()).to_string();
             println!("{}", table.green());
@@ -53,6 +77,53 @@ impl Execute for RunArg {
         }
         Ok(())
     }
+}
+
+fn parse(template: &ExpressionValue, content: &mut String) -> Result<(), Box<dyn Error>> {
+    let expressions = Expression::parse_from_str(&content)?;
+    for expression in expressions {
+        let new_content: String;
+        match Expression::parse(&expression)? {
+            Expression::Variable(expr) => {
+                let key = Expression::variable_parse(&expr)?;
+                match template.variables.get(&key) {
+                    Some(v) => {
+                        new_content = content.replace(&expression, v);
+                        content.clear();
+                        content.push_str(&new_content);
+                    }
+                    None => { return Err(Box::new(YurlError::new(&format!("undefined variable: {}", key)))); }
+                }
+            }
+            Expression::Function(expr) => {
+                let key = Expression::function_parse(&expr)?;
+                match template.functions.get(&key) {
+                    Some(f) => {
+                        new_content = content.replace(&expression, &(f.fun)());
+                        content.clear();
+                        content.push_str(&new_content);
+                    }
+                    None => { return Err(Box::new(YurlError::new(&format!("undefined function: {}", key)))); }
+                }
+            }
+            Expression::Response(expr) => {
+                let re = Expression::response_parse(&expr)?;
+                match template.responses.get(&re.parent.as_str()) {
+                    None => {
+                        return Err(Box::new(YurlError::new(&format!("request [{}] does not exist or is not executed.", &re.parent))));
+                    }
+                    Some(r) => {
+                        let res = serde_json::from_str(&r.response.clone().unwrap_or(Default::default()))?;
+                        let v = ResponseJson::new(&res, re.path).get_value()?;
+                        new_content = content.replace(&expression, &v.to_string());
+                        content.clear();
+                        content.push_str(&new_content);
+                    }
+                }
+            }
+        }
+    }
+    Ok(())
 }
 
 #[derive(Tabled, PartialEq, Eq)]
@@ -75,5 +146,73 @@ impl PartialOrd<Self> for RequestItem {
 impl Ord for RequestItem {
     fn cmp(&self, other: &Self) -> Ordering {
         self.order.cmp(&other.order)
+    }
+}
+
+struct ResponseJson<'a> {
+    value: Option<&'a Value>,
+    path: Vec<String>,
+}
+
+impl<'a> ResponseJson<'a> {
+    fn new(value: &'a Value, path: String) -> Self {
+        let mut p: Vec<String> = path.split(".").map(|m| { m.to_string() }).collect();
+        p.reverse();
+        Self {
+            value: Some(value),
+            path: p,
+        }
+    }
+
+    fn get_value(mut self) -> Result<&'a Value, Box<dyn Error>> {
+        loop {
+            let k = self.path.pop();
+            match k {
+                Some(k) => {
+                    let s: Option<&Value>;
+                    if k.starts_with("#") {
+                        let k = &k[1..].parse::<usize>()?;
+                        s = self.value.unwrap().get(k);
+                    } else {
+                        s = self.value.unwrap().get(k);
+                    }
+                    match s {
+                        None => { self.value = None }
+                        Some(v) => { self.value = Some(v) }
+                    };
+                }
+                None => { break; }
+            }
+        }
+        dbg!(&self.value);
+        return match self.value {
+            None => { Err(Box::new(YurlError::new("response expression parse error."))) }
+            Some(v) => { Ok(v) }
+        };
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::error::Error;
+
+    use serde_json::json;
+
+    use crate::cmd::run::ResponseJson;
+
+    #[test]
+    fn test_json() -> Result<(), Box<dyn Error>> {
+        let v = json!({"a": "s","b": ["2","1"]});
+        let v = ResponseJson::new(&v, "b.#1".to_string()).get_value()?;
+        dbg!(v);
+        Ok(())
+    }
+
+    #[test]
+    fn test_json2() -> Result<(), Box<dyn Error>> {
+        let v = json!({"a": "s","b": ["2","1"]});
+        let v = v.get("b").unwrap().get(1);
+        dbg!(v);
+        Ok(())
     }
 }
