@@ -65,13 +65,14 @@ pub struct ListArg {}
 impl Execute for ListArg {
     fn run(self) -> Result<(), Box<dyn Error>> {
         let fs = Function::functions();
-        let items: Vec<FunctionItem> = fs.values().map(|i| {
+        let mut items: Vec<FunctionItem> = fs.values().map(|i| {
             FunctionItem {
                 key: &i.key,
                 about: &i.about,
                 result: (i.fun)(),
             }
         }).collect();
+        items.sort_by(|o1, o2| { o1.key.cmp(o2.key) });
         let table = Builder::from(Table::new(items)).build().with(Style::rounded()).to_string();
         println!("{}", table.green());
         Ok(())
@@ -114,6 +115,7 @@ impl Execute for SearchArg {
                 items.push(FunctionItem { key: &v.key, about: &v.about, result: (v.fun)() });
             }
         }
+        items.sort_by(|o1, o2| { o1.key.cmp(o2.key) });
         let table = Builder::from(Table::new(items)).build().with(Style::rounded()).to_string();
         Ok(println!("{}", table.green()))
     }
