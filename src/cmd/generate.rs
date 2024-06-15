@@ -2,6 +2,7 @@ use std::error::Error;
 use std::fs;
 
 use clap::Args;
+use colored::Colorize;
 
 use crate::cmd::Execute;
 
@@ -58,7 +59,7 @@ impl Execute for GenerateArg {
                     Some(from) => { Ok(()) }
                     None => {
                         return match fs::write(&out, YURL_TEMPLATE) {
-                            Ok(_) => { Ok(println!("please view {}", out)) }
+                            Ok(_) => { Ok(println!("{}",format!("please view {}", out).green())) }
                             Err(e) => { Err(Box::new(e)) }
                         };
                     }

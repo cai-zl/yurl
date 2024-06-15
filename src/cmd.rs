@@ -22,7 +22,7 @@ impl Cli {
 
 #[derive(Debug, Subcommand)]
 pub enum Commands {
-    #[command(arg_required_else_help = true, short_flag = 'r')]
+    #[command(short_flag = 'r')]
     Run(run::RunArg),
     #[command(name = "function", subcommand_required = true, long_flag = "fun", short_flag = 'f')]
     Function(function::FunctionArg),

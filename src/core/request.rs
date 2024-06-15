@@ -41,25 +41,25 @@ impl Request {
     fn get(&self) -> Result<String, Box<dyn Error>> {
         let request = reqwest::blocking::Request::new(reqwest::Method::GET, Url::parse(&self.url)?);
         let request = self.build(request)?;
-        Ok(Client::new().execute(request)?.text().unwrap())
+        self.execute(request)
     }
 
     fn post(&self) -> Result<String, Box<dyn Error>> {
         let request = reqwest::blocking::Request::new(reqwest::Method::POST, Url::parse(&self.url)?);
         let request = self.build(request)?;
-        Ok(Client::new().execute(request)?.text().unwrap())
+        self.execute(request)
     }
 
     fn put(&self) -> Result<String, Box<dyn Error>> {
         let request = reqwest::blocking::Request::new(reqwest::Method::PUT, Url::parse(&self.url)?);
         let request = self.build(request)?;
-        Ok(Client::new().execute(request)?.text().unwrap())
+        self.execute(request)
     }
 
     fn delete(&self) -> Result<String, Box<dyn Error>> {
         let request = reqwest::blocking::Request::new(reqwest::Method::DELETE, Url::parse(&self.url)?);
         let request = self.build(request)?;
-        Ok(Client::new().execute(request)?.text().unwrap())
+        self.execute(request)
     }
 
     fn build(&self, mut request: reqwest::blocking::Request) -> Result<reqwest::blocking::Request, Box<dyn Error>> {
@@ -103,6 +103,16 @@ impl Request {
             }
         }
         Ok(request)
+    }
+
+    fn execute(&self, request: reqwest::blocking::Request) -> Result<String, Box<dyn Error>> {
+        let res = Client::new().execute(request)?;
+        if res.status().is_success() {
+            Ok(res.text()?)
+        } else {
+            return Err(Box::new(YurlError::new(&format!("request name: [{}], url: [{}] execute fail, status code: {}",
+                                                        self.name, self.url, res.status()))));
+        }
     }
 }
 

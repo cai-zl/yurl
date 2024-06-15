@@ -21,7 +21,7 @@ use super::Execute;
 #[derive(Args, Debug)]
 #[command(version, about, long_about = None)]
 pub struct RunArg {
-    #[arg(short, long)]
+    #[arg(short, long, default_value = "template.yaml")]
     pub file: String,
     #[arg(short, long, default_value = "false")]
     pub pretty: bool,
@@ -40,7 +40,7 @@ impl Execute for RunArg {
         template.requests.sort();
         {
             let mut ev = ExpressionValue { variables: &template.vars, functions: Function::functions(), responses: Default::default() };
-            template.requests.iter_mut().for_each(|request| {
+            for request in template.requests.iter_mut() {
                 // parse url
                 _ = parse(&ev, &mut request.url);
                 // parse params
@@ -51,10 +51,10 @@ impl Execute for RunArg {
                 &request.headers.iter_mut().for_each(|(_, v)| {
                     _ = parse(&ev, v);
                 });
-                let res = request.run().unwrap();
+                let res = request.run()?;
                 request.response = Some(res);
                 ev.responses.insert(&request.name, request);
-            });
+            }
         }
         let items: Vec<RequestItem> = template.requests.iter().map(|m| {
             RequestItem {
@@ -64,7 +64,7 @@ impl Execute for RunArg {
                 url: format!("{}", m.url),
                 params: format!("{:?}", m.params),
                 headers: format!("{:?}", m.headers),
-                response: m.response.clone().unwrap_or(String::new()),
+                response: m.response.clone().unwrap_or(Default::default()),
             }
         }).collect();
         if self.pretty {
