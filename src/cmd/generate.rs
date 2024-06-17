@@ -56,7 +56,7 @@ impl Execute for GenerateArg {
             None => {}
             Some(out) => {
                 return match self.from {
-                    Some(from) => { Ok(()) }
+                    Some(_from) => { Ok(()) }
                     None => {
                         return match fs::write(&out, YURL_TEMPLATE) {
                             Ok(_) => { Ok(println!("{}",format!("please view {}", out).green())) }

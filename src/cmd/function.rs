@@ -59,7 +59,7 @@ pub enum FunctionCommands {
 
 
 #[derive(Args, Debug)]
-#[command(version, about, long_about = None)]
+#[command(about, long_about = None)]
 pub struct ListArg {}
 
 impl Execute for ListArg {
@@ -80,7 +80,7 @@ impl Execute for ListArg {
 }
 
 #[derive(Args, Debug)]
-#[command(version, about, long_about = None)]
+#[command(about, long_about = None)]
 pub struct CallArg {
     #[arg(long, short, required = true)]
     pub key: Option<String>,
@@ -99,7 +99,7 @@ impl Execute for CallArg {
 }
 
 #[derive(Args, Debug)]
-#[command(version, about, long_about = None)]
+#[command(about, long_about = None)]
 pub struct SearchArg {
     #[arg(long, short, required = true)]
     pub key: Option<String>,

@@ -44,11 +44,11 @@ impl Execute for RunArg {
                 // parse url
                 _ = parse(&ev, &mut request.url);
                 // parse params
-                &request.params.iter_mut().for_each(|(_, v)| {
+                let _ = &request.params.iter_mut().for_each(|(_, v)| {
                     _ = parse(&ev, v);
                 });
                 // parse headers
-                &request.headers.iter_mut().for_each(|(_, v)| {
+                let _ = &request.headers.iter_mut().for_each(|(_, v)| {
                     _ = parse(&ev, v);
                 });
                 let res = request.run()?;

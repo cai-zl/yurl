@@ -8,7 +8,7 @@ pub mod generate;
 
 #[derive(Debug, Parser)]
 #[command(name = "yurl", subcommand_required = true)]
-#[command(about = "A fictional versioning CLI", long_about = None)]
+#[command(about = "http cli tool.", long_about = "http requests through yaml files.", version)]
 pub struct Cli {
     #[command(subcommand)]
     pub command: Commands,
