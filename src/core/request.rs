@@ -2,10 +2,7 @@ use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::error::Error;
 
-use reqwest::blocking::{Body, Client};
-use reqwest::Url;
 use serde::{Deserialize, Serialize};
-use serde_json::json;
 
 use crate::core::error::YurlError;
 
@@ -39,79 +36,57 @@ impl Request {
     }
 
     fn get(&self) -> Result<String, Box<dyn Error>> {
-        let request = reqwest::blocking::Request::new(reqwest::Method::GET, Url::parse(&self.url)?);
-        let request = self.build(request)?;
+        let request = ureq::request("GET", &self.url);
         self.execute(request)
     }
 
     fn post(&self) -> Result<String, Box<dyn Error>> {
-        let request = reqwest::blocking::Request::new(reqwest::Method::POST, Url::parse(&self.url)?);
-        let request = self.build(request)?;
+        let request = ureq::request("POST", &self.url);
         self.execute(request)
     }
 
     fn put(&self) -> Result<String, Box<dyn Error>> {
-        let request = reqwest::blocking::Request::new(reqwest::Method::PUT, Url::parse(&self.url)?);
-        let request = self.build(request)?;
+        let request = ureq::request("PUT", &self.url);
         self.execute(request)
     }
 
     fn delete(&self) -> Result<String, Box<dyn Error>> {
-        let request = reqwest::blocking::Request::new(reqwest::Method::DELETE, Url::parse(&self.url)?);
-        let request = self.build(request)?;
+        let request = ureq::request("DELETE", &self.url);
         self.execute(request)
     }
 
-    fn build(&self, mut request: reqwest::blocking::Request) -> Result<reqwest::blocking::Request, Box<dyn Error>> {
-        let mut headers = reqwest::header::HeaderMap::try_from(&self.headers)?;
-        headers.insert(self.content_type.to_kv().0, self.content_type.to_kv().1.parse()?);
+    fn execute(&self, mut request: ureq::Request) -> Result<String, Box<dyn Error>> {
+        let content_type = self.content_type.to_kv();
+        request = request.set(content_type.0, content_type.1);
+        for (k, v) in self.headers.iter() {
+            request = request.set(k, v);
+        }
+        let response: ureq::Response;
         match self.content_type {
             ContentType::URLENCODED => {
-                let url = request.url_mut();
                 for (k, v) in self.params.iter() {
-                    let mut query = String::new();
-                    query.push_str(k);
-                    query.push('=');
-                    query.push_str(v);
-                    url.set_query(Some(&query));
+                    request = request.query(k, v);
                 }
-                for (k, v) in headers.into_iter() {
-                    request.headers_mut().append(k.unwrap(), v);
-                }
+                response = request.call()?
             }
             ContentType::FORM => {
-                let body: Vec<String> = self.params.iter().map(|(k, v)| {
-                    let mut query = String::new();
-                    query.push_str(k);
-                    query.push('=');
-                    query.push_str(v);
-                    query
+                let body: Vec<(&str, &str)> = self.params.iter().map(|(k, v)| {
+                    (k.as_str(), v.as_str())
                 }).collect();
-                *request.body_mut() = Some(body.join("&").into());
-                for (k, v) in headers.into_iter() {
-                    request.headers_mut().append(k.unwrap(), v);
-                }
+                response = request.send_form(&body[..])?
             }
             ContentType::JSON => {
-                *request.body_mut() = Some(Body::from(json!(&self.params).to_string()));
-                for (k, v) in headers.into_iter() {
-                    request.headers_mut().append(k.unwrap(), v);
-                }
+                response = request.send_json(&self.params)?
             }
             ContentType::FILE => {
                 return Err(Box::new(YurlError::new("not support file")));
             }
         }
-        Ok(request)
-    }
-
-    fn execute(&self, request: reqwest::blocking::Request) -> Result<String, Box<dyn Error>> {
-        let res = Client::new().execute(request)?;
-        if res.status().is_success() {
-            Ok(res.text()?)
+        if response.status() == 200 {
+            Ok(response.into_string()?)
         } else {
-            return Err(Box::new(YurlError::new(&format!("request name: [{}], url: [{}] execute fail, status code: {}",
-                                                        self.name, self.url, res.status()))));
+            return Err(Box::new(YurlError::new(&format!("request name: [{}], url: [{}] execute fail, status code: {}, message: {}",
+                                                        self.name, self.url, response.status(), response.status_text()))));
         }
     }
 }
