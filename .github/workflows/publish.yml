@@ -1,0 +1,109 @@
+name: Publish
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - '*'
+
+jobs:
+  publish:
+    name: ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-20.04
+            target: x86_64-unknown-linux-gnu
+            toolchain: stable
+            use-cross: false
+
+          - os: ubuntu-20.04
+            target: x86_64-unknown-linux-musl
+            toolchain: stable
+            use-cross: false
+          
+          - os: ubuntu-20.04
+            target: aarch64-unknown-linux-gnu
+            toolchain: stable
+            use-cross: true
+
+          - os: ubuntu-20.04
+            target: aarch64-unknown-linux-musl
+            toolchain: stable
+            use-cross: true
+
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            toolchain: stable
+            use-cross: false
+
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            toolchain: stable
+            use-cross: false
+          
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            toolchain: nightly-2023-06-11
+            use-cross: false
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 1
+
+    - name: Install Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: ${{ matrix.toolchain }}
+        profile: minimal
+        override: true
+        target: ${{ matrix.target }}
+    
+    - name: rust cache restore
+      uses: actions/cache/restore@v3
+      with:
+        path: |
+          ~/.cargo/bin/
+          ~/.cargo/registry/index/
+          ~/.cargo/registry/cache/
+          ~/.cargo/git/db/
+          target/
+        key: ${{ runner.os }}-cargo-${{ matrix.target }}-${{ hashFiles('**/Cargo.lock') }}
+
+    - name: Build
+      uses: actions-rs/cargo@v1
+      with:
+        use-cross: ${{ matrix.use-cross }}
+        command: build
+        args: --target ${{ matrix.target }} --release --locked
+    
+    - name: Upload files (only for Mac/Linux)
+      if: matrix.target != 'x86_64-pc-windows-msvc'
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        UPLOADTOOL_ISPRERELEASE: true
+        VERSION: ${{  github.ref_name }}
+      run: |
+        curl -L https://github.com/probonopd/uploadtool/raw/master/upload.sh --output upload.sh
+        mv target/${{ matrix.target }}/release/yurl yurl
+        tar -cavf yurl-${VERSION}-${{ matrix.target }}.tar.gz yurl CHANGELOG.md README.md LICENSE
+        bash upload.sh yurl-${VERSION}-${{ matrix.target }}.tar.gz
+    
+    - name: Rename files (only for Windows)
+      if: matrix.target == 'x86_64-pc-windows-msvc'
+      env:
+        VERSION: ${{ github.ref_name }}
+      run: |
+        mkdir output/
+        mv target/${{ matrix.target }}/release/yurl.exe output/yurl-$env:VERSION-${{ matrix.target }}.exe
+    
+    - name: Upload files (only for Windows)
+      uses: ncipollo/release-action@v1
+      if: matrix.target == 'x86_64-pc-windows-msvc'
+      with:
+        allowUpdates: true
+        artifacts: "output/*"
+        token: ${{ secrets.GITHUB_TOKEN }}
