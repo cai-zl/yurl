@@ -2,9 +2,9 @@ use std::error::Error;
 
 use clap::{Args, Subcommand};
 use colored::Colorize;
-use tabled::{Table, Tabled};
 use tabled::builder::Builder;
 use tabled::settings::Style;
+use tabled::{Table, Tabled};
 
 use crate::core::error::YurlError;
 use crate::core::function::Function;
@@ -29,20 +29,12 @@ pub struct FunctionArg {
 impl Execute for FunctionArg {
     fn run(self) -> Result<(), Box<dyn Error>> {
         match self.command {
-            Some(commands) => {
-                match commands {
-                    FunctionCommands::List(arg) => {
-                        arg.run()
-                    }
-                    FunctionCommands::Call(arg) => {
-                        arg.run()
-                    }
-                    FunctionCommands::Search(arg) => {
-                        arg.run()
-                    }
-                }
-            }
-            None => { Ok(()) }
+            Some(commands) => match commands {
+                FunctionCommands::List(arg) => arg.run(),
+                FunctionCommands::Call(arg) => arg.run(),
+                FunctionCommands::Search(arg) => arg.run(),
+            },
+            None => Ok(()),
         }
     }
 }
@@ -57,7 +49,6 @@ pub enum FunctionCommands {
     Search(SearchArg),
 }
 
-
 #[derive(Args, Debug)]
 #[command(about, long_about = None)]
 pub struct ListArg {}
@@ -65,15 +56,19 @@ pub struct ListArg {}
 impl Execute for ListArg {
     fn run(self) -> Result<(), Box<dyn Error>> {
         let fs = Function::functions();
-        let mut items: Vec<FunctionItem> = fs.values().map(|i| {
-            FunctionItem {
+        let mut items: Vec<FunctionItem> = fs
+            .values()
+            .map(|i| FunctionItem {
                 key: &i.key,
                 about: &i.about,
                 result: (i.fun)(),
-            }
-        }).collect();
-        items.sort_by(|o1, o2| { o1.key.cmp(o2.key) });
-        let table = Builder::from(Table::new(items)).build().with(Style::rounded()).to_string();
+            })
+            .collect();
+        items.sort_by(|o1, o2| o1.key.cmp(o2.key));
+        let table = Builder::from(Table::new(items))
+            .build()
+            .with(Style::rounded())
+            .to_string();
         println!("{}", table.green());
         Ok(())
     }
@@ -90,10 +85,11 @@ impl Execute for CallArg {
     fn run(self) -> Result<(), Box<dyn Error>> {
         let key: String = self.key.unwrap();
         match Function::functions().get(&key) {
-            None => { Err(Box::new(YurlError::new(&format!("undefined function: {}", key)))) }
-            Some(f) => {
-                Ok(println!("{}", (f.fun)().green()))
-            }
+            None => Err(Box::new(YurlError::new(&format!(
+                "undefined function: {}",
+                key
+            )))),
+            Some(f) => Ok(println!("{}", (f.fun)().green())),
         }
     }
 }
@@ -112,11 +108,18 @@ impl Execute for SearchArg {
         let mut items = Vec::new();
         for (k, v) in fs.iter() {
             if k.contains(&key) {
-                items.push(FunctionItem { key: &v.key, about: &v.about, result: (v.fun)() });
+                items.push(FunctionItem {
+                    key: &v.key,
+                    about: &v.about,
+                    result: (v.fun)(),
+                });
             }
         }
-        items.sort_by(|o1, o2| { o1.key.cmp(o2.key) });
-        let table = Builder::from(Table::new(items)).build().with(Style::rounded()).to_string();
+        items.sort_by(|o1, o2| o1.key.cmp(o2.key));
+        let table = Builder::from(Table::new(items))
+            .build()
+            .with(Style::rounded())
+            .to_string();
         Ok(println!("{}", table.green()))
     }
 }

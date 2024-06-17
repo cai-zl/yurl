@@ -6,9 +6,9 @@ use std::fs;
 use clap::Args;
 use colored::Colorize;
 use serde_json::Value;
-use tabled::{Table, Tabled};
 use tabled::builder::Builder;
 use tabled::settings::Style;
+use tabled::{Table, Tabled};
 
 use crate::core::error::YurlError;
 use crate::core::expression::Expression;
@@ -39,7 +39,11 @@ impl Execute for RunArg {
         let mut template = Template::from_to_yaml(&content)?;
         template.requests.sort();
         {
-            let mut ev = ExpressionValue { variables: &template.vars, functions: Function::functions(), responses: Default::default() };
+            let mut ev = ExpressionValue {
+                variables: &template.vars,
+                functions: Function::functions(),
+                responses: Default::default(),
+            };
             for request in template.requests.iter_mut() {
                 // parse url
                 _ = parse(&ev, &mut request.url);
@@ -56,8 +60,10 @@ impl Execute for RunArg {
                 ev.responses.insert(&request.name, request);
             }
         }
-        let items: Vec<RequestItem> = template.requests.iter().map(|m| {
-            RequestItem {
+        let items: Vec<RequestItem> = template
+            .requests
+            .iter()
+            .map(|m| RequestItem {
                 order: m.order,
                 name: format!("{}", m.name),
                 method: format!("{:?}", m.method),
@@ -65,14 +71,20 @@ impl Execute for RunArg {
                 params: format!("{:?}", m.params),
                 headers: format!("{:?}", m.headers),
                 response: m.response.clone().unwrap_or(Default::default()),
-            }
-        }).collect();
+            })
+            .collect();
         if self.pretty {
-            let table = Builder::from(Table::new(items)).build().with(Style::rounded()).to_string();
+            let table = Builder::from(Table::new(items))
+                .build()
+                .with(Style::rounded())
+                .to_string();
             println!("{}", table.green());
         } else {
             for item in items {
-                println!("{}", format!("[{}] -- [{}] -- {}", item.name, item.url, item.response).green());
+                println!(
+                    "{}",
+                    format!("[{}] -- [{}] -- {}", item.name, item.url, item.response).green()
+                );
             }
         }
         Ok(())
@@ -92,7 +104,12 @@ fn parse(template: &ExpressionValue, content: &mut String) -> Result<(), Box<dyn
                         content.clear();
                         content.push_str(&new_content);
                     }
-                    None => { return Err(Box::new(YurlError::new(&format!("undefined variable: {}", key)))); }
+                    None => {
+                        return Err(Box::new(YurlError::new(&format!(
+                            "undefined variable: {}",
+                            key
+                        ))));
+                    }
                 }
             }
             Expression::Function(expr) => {
@@ -103,17 +120,27 @@ fn parse(template: &ExpressionValue, content: &mut String) -> Result<(), Box<dyn
                         content.clear();
                         content.push_str(&new_content);
                     }
-                    None => { return Err(Box::new(YurlError::new(&format!("undefined function: {}", key)))); }
+                    None => {
+                        return Err(Box::new(YurlError::new(&format!(
+                            "undefined function: {}",
+                            key
+                        ))));
+                    }
                 }
             }
             Expression::Response(expr) => {
                 let re = Expression::response_parse(&expr)?;
                 match template.responses.get(&re.parent.as_str()) {
                     None => {
-                        return Err(Box::new(YurlError::new(&format!("request [{}] does not exist or is not executed.", &re.parent))));
+                        return Err(Box::new(YurlError::new(&format!(
+                            "request [{}] does not exist or is not executed.",
+                            &re.parent
+                        ))));
                     }
                     Some(r) => {
-                        let res = serde_json::from_str(&r.response.clone().unwrap_or(Default::default()))?;
+                        let res = serde_json::from_str(
+                            &r.response.clone().unwrap_or(Default::default()),
+                        )?;
                         let v = ResponseJson::new(&res, re.path).get_value()?;
                         new_content = content.replace(&expression, &v.to_string());
                         content.clear();
@@ -156,7 +183,7 @@ struct ResponseJson<'a> {
 
 impl<'a> ResponseJson<'a> {
     fn new(value: &'a Value, path: String) -> Self {
-        let mut p: Vec<String> = path.split(".").map(|m| { m.to_string() }).collect();
+        let mut p: Vec<String> = path.split(".").map(|m| m.to_string()).collect();
         p.reverse();
         Self {
             value: Some(value),
@@ -177,16 +204,18 @@ impl<'a> ResponseJson<'a> {
                         s = self.value.unwrap().get(k);
                     }
                     match s {
-                        None => { self.value = None }
-                        Some(v) => { self.value = Some(v) }
+                        None => self.value = None,
+                        Some(v) => self.value = Some(v),
                     };
                 }
-                None => { break; }
+                None => {
+                    break;
+                }
             }
         }
         return match self.value {
-            None => { Err(Box::new(YurlError::new("response expression parse error."))) }
-            Some(v) => { Ok(v) }
+            None => Err(Box::new(YurlError::new("response expression parse error."))),
+            Some(v) => Ok(v),
         };
     }
 }

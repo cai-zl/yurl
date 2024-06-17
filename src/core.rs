@@ -6,10 +6,10 @@ use serde::{Deserialize, Serialize};
 use crate::core::function::Function;
 use crate::core::request::Request;
 
-pub mod function;
 pub mod error;
-pub mod request;
 pub mod expression;
+pub mod function;
+pub mod request;
 
 #[derive(Serialize, Deserialize)]
 pub struct Template<'a> {

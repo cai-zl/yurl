@@ -56,11 +56,11 @@ impl Execute for GenerateArg {
             None => {}
             Some(out) => {
                 return match self.from {
-                    Some(_from) => { Ok(()) }
+                    Some(_from) => Ok(()),
                     None => {
                         return match fs::write(&out, YURL_TEMPLATE) {
-                            Ok(_) => { Ok(println!("{}",format!("please view {}", out).green())) }
-                            Err(e) => { Err(Box::new(e)) }
+                            Ok(_) => Ok(println!("{}", format!("please view {}", out).green())),
+                            Err(e) => Err(Box::new(e)),
                         };
                     }
                 };

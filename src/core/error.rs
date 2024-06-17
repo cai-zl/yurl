@@ -18,7 +18,7 @@ impl Error for YurlError {}
 impl YurlError {
     pub fn new(message: &str) -> Self {
         YurlError {
-            message: message.to_string()
+            message: message.to_string(),
         }
     }
 }

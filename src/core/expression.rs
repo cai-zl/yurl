@@ -41,13 +41,18 @@ impl Expression {
     }
 
     pub fn parse(expression: &str) -> Result<Self, Box<dyn Error>> {
-        if expression.starts_with("${")
-            && expression.ends_with("}") {
+        if expression.starts_with("${") && expression.ends_with("}") {
             return match &expression[2..5] {
-                "var" => { Ok(Expression::Variable(expression[2..expression.len() - 1].to_string())) }
-                "fun" => { Ok(Expression::Function(expression[2..expression.len() - 1].to_string())) }
-                "res" => { Ok(Expression::Response(expression[2..expression.len() - 1].to_string())) }
-                _ => { Err(Box::new(YurlError::new("not supported expression type"))) }
+                "var" => Ok(Expression::Variable(
+                    expression[2..expression.len() - 1].to_string(),
+                )),
+                "fun" => Ok(Expression::Function(
+                    expression[2..expression.len() - 1].to_string(),
+                )),
+                "res" => Ok(Expression::Response(
+                    expression[2..expression.len() - 1].to_string(),
+                )),
+                _ => Err(Box::new(YurlError::new("not supported expression type"))),
             };
         }
         Err(Box::new(YurlError::new("expression formatting error")))
@@ -56,7 +61,9 @@ impl Expression {
     pub fn variable_parse(expression: &str) -> Result<String, Box<dyn Error>> {
         let keys: Vec<&str> = expression.split(".").collect();
         if keys.len() != 2 {
-            return Err(Box::new(YurlError::new("variable expression formatting error")));
+            return Err(Box::new(YurlError::new(
+                "variable expression formatting error",
+            )));
         }
         Ok(keys.get(1).unwrap().to_string())
     }
@@ -64,7 +71,9 @@ impl Expression {
     pub fn function_parse(expression: &str) -> Result<String, Box<dyn Error>> {
         let keys: Vec<&str> = expression.split(".").collect();
         if keys.len() != 2 {
-            return Err(Box::new(YurlError::new("function expression formatting error")));
+            return Err(Box::new(YurlError::new(
+                "function expression formatting error",
+            )));
         }
         Ok(keys.get(1).unwrap().to_string())
     }
@@ -72,7 +81,9 @@ impl Expression {
     pub fn response_parse(expression: &str) -> Result<ResponseExpression, Box<dyn Error>> {
         let keys: Vec<&str> = expression.split(".").collect();
         if keys.len() < 3 {
-            return Err(Box::new(YurlError::new("response expression formatting error")));
+            return Err(Box::new(YurlError::new(
+                "response expression formatting error",
+            )));
         }
         Ok(ResponseExpression {
             parent: keys.get(1).unwrap().to_string(),
@@ -80,4 +91,3 @@ impl Expression {
         })
     }
 }
-

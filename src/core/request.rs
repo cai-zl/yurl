@@ -28,10 +28,10 @@ pub struct Request {
 impl Request {
     pub fn run(&self) -> Result<String, Box<dyn Error>> {
         match self.method {
-            Method::GET => { self.get() }
-            Method::POST => { self.post() }
-            Method::PUT => { self.put() }
-            Method::DELETE => { self.delete() }
+            Method::GET => self.get(),
+            Method::POST => self.post(),
+            Method::PUT => self.put(),
+            Method::DELETE => self.delete(),
         }
     }
 
@@ -70,14 +70,14 @@ impl Request {
                 response = request.call()?
             }
             ContentType::FORM => {
-                let body: Vec<(&str, &str)> = self.params.iter().map(|(k, v)| {
-                    (k.as_str(), v.as_str())
-                }).collect();
+                let body: Vec<(&str, &str)> = self
+                    .params
+                    .iter()
+                    .map(|(k, v)| (k.as_str(), v.as_str()))
+                    .collect();
                 response = request.send_form(&body[..])?
             }
-            ContentType::JSON => {
-                response = request.send_json(&self.params)?
-            }
+            ContentType::JSON => response = request.send_json(&self.params)?,
             ContentType::FILE => {
                 return Err(Box::new(YurlError::new("not support file")));
             }
@@ -85,8 +85,13 @@ impl Request {
         if response.status() == 200 {
             Ok(response.into_string()?)
         } else {
-            return Err(Box::new(YurlError::new(&format!("request name: [{}], url: [{}] execute fail, status code: {}, message: {}",
-                                                        self.name, self.url, response.status(), response.status_text()))));
+            return Err(Box::new(YurlError::new(&format!(
+                "request name: [{}], url: [{}] execute fail, status code: {}, message: {}",
+                self.name,
+                self.url,
+                response.status(),
+                response.status_text()
+            ))));
         }
     }
 }
@@ -124,10 +129,10 @@ pub enum ContentType {
 impl ContentType {
     pub fn to_kv(&self) -> (&'static str, &'static str) {
         match &self {
-            ContentType::URLENCODED => { (CONTENT_TYPE_KEY, CONTENT_TYPE_URL) }
-            ContentType::JSON => { (CONTENT_TYPE_KEY, CONTENT_TYPE_JSON) }
-            ContentType::FORM => { (CONTENT_TYPE_KEY, CONTENT_TYPE_FROM) }
-            ContentType::FILE => { (CONTENT_TYPE_KEY, CONTENT_TYPE_FROM) }
+            ContentType::URLENCODED => (CONTENT_TYPE_KEY, CONTENT_TYPE_URL),
+            ContentType::JSON => (CONTENT_TYPE_KEY, CONTENT_TYPE_JSON),
+            ContentType::FORM => (CONTENT_TYPE_KEY, CONTENT_TYPE_FROM),
+            ContentType::FILE => (CONTENT_TYPE_KEY, CONTENT_TYPE_FROM),
         }
     }
 }

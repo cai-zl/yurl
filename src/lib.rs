@@ -1,2 +1,2 @@
-mod core;
 pub mod cmd;
+mod core;
