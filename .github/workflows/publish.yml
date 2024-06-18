@@ -17,19 +17,9 @@ jobs:
             target: x86_64-unknown-linux-gnu
             toolchain: stable
             use-cross: false
-
-          - os: ubuntu-20.04
-            target: x86_64-unknown-linux-musl
-            toolchain: stable
-            use-cross: false
           
           - os: ubuntu-20.04
             target: aarch64-unknown-linux-gnu
-            toolchain: stable
-            use-cross: true
-
-          - os: ubuntu-20.04
-            target: aarch64-unknown-linux-musl
             toolchain: stable
             use-cross: true
 
@@ -45,7 +35,7 @@ jobs:
           
           - os: windows-latest
             target: x86_64-pc-windows-msvc
-            toolchain: nightly-2023-06-11
+            toolchain: nightly
             use-cross: false
 
     steps:
@@ -62,17 +52,6 @@ jobs:
         override: true
         target: ${{ matrix.target }}
     
-    - name: rust cache restore
-      uses: actions/cache/restore@v3
-      with:
-        path: |
-          ~/.cargo/bin/
-          ~/.cargo/registry/index/
-          ~/.cargo/registry/cache/
-          ~/.cargo/git/db/
-          target/
-        key: ${{ runner.os }}-cargo-${{ matrix.target }}-${{ hashFiles('**/Cargo.lock') }}
-
     - name: Build
       uses: actions-rs/cargo@v1
       with:
