@@ -3,6 +3,10 @@ name = "yurl"
 version = "0.1.0"
 edition = "2021"
 
+[[bin]]
+name = "yurl"
+path = "src/main.rs"
+
 [dependencies]
 clap = { version = "4.5.4", features = ["derive"] }
 colored = "2.1.0"
@@ -12,3 +16,4 @@ serde_yaml = "0.9.34"
 tabled = "0.15.0"
 chrono = "0.4"
 ureq = {version = "2.9.7",features = ["json"]}
+md5 = "0.7.0"

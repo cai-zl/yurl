@@ -6,7 +6,10 @@ use colored::Colorize;
 
 use crate::cmd::Execute;
 
-const YURL_TEMPLATE: &str = r#"# variable, use ${var.name} can obtain.
+const YURL_TEMPLATE: &str = r#"# import other yurl yaml file.
+imports:
+  - ./var.yaml
+# variable, use ${var.name} can obtain.
 vars:
   name: tom
   host: 127.0.0.1

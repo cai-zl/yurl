@@ -1,7 +1,6 @@
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::error::Error;
-use std::fs;
 
 use clap::Args;
 use colored::Colorize;
@@ -35,8 +34,7 @@ struct ExpressionValue<'a> {
 
 impl Execute for RunArg {
     fn run(self) -> Result<(), Box<dyn Error>> {
-        let content = fs::read_to_string(self.file)?;
-        let mut template = Template::from_to_yaml(&content)?;
+        let mut template = Template::from_to_file(&self.file)?;
         template.requests.sort();
         {
             let mut ev = ExpressionValue {

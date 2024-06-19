@@ -11,7 +11,7 @@ const CONTENT_TYPE_JSON: &str = "application/json";
 const CONTENT_TYPE_FROM: &str = "application/x-www-form-urlencoded";
 const CONTENT_TYPE_URL: &str = "application/x-www-form-urlencoded";
 
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Request {
     pub order: i32,
     pub name: String,
@@ -97,6 +97,12 @@ impl Request {
 }
 
 impl Eq for Request {}
+
+impl PartialEq for Request {
+    fn eq(&self, other: &Self) -> bool {
+        self.name.eq(&other.name)
+    }
+}
 
 impl PartialOrd<Self> for Request {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
