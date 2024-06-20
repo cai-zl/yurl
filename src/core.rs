@@ -2,6 +2,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::error::Error;
 use std::path::Path;
+use std::rc::Rc;
 use std::{env, fs};
 
 use clap::error::Result;
@@ -29,14 +30,9 @@ pub struct Template {
 }
 
 impl Template {
-    pub fn from_to_yaml(yaml: &str) -> Result<Self, Box<dyn Error>> {
-        let template = serde_yaml::from_str(yaml)?;
-        Ok(template)
-    }
-
     pub fn from_to_file(file: &str) -> Result<Self, Box<dyn Error>> {
-        let ds = RefCell::new(Vec::new());
-        let templates = Self::parse_import(file, ds)?;
+        let parsed_file = Rc::new(RefCell::new(Vec::new()));
+        let templates = Self::parse(file, parsed_file)?;
         // merge
         let mut template: Self = Default::default();
         for t in templates {
@@ -62,7 +58,10 @@ impl Template {
         Ok(template)
     }
 
-    fn parse_import(file: &str, ds: RefCell<Vec<Digest>>) -> Result<Vec<Self>, Box<dyn Error>> {
+    fn parse(
+        file: &str,
+        parsed_file: Rc<RefCell<Vec<Digest>>>,
+    ) -> Result<Vec<Self>, Box<dyn Error>> {
         let mut templates = Vec::new();
         let file_path = Path::new(file);
         let current_dir = env::current_dir()?;
@@ -71,22 +70,22 @@ impl Template {
         env::set_current_dir(parent_dir)?;
         let digest = md5::compute(&yaml);
         {
-            if ds.borrow().contains(&digest) {
+            if parsed_file.borrow().contains(&digest) {
                 env::set_current_dir(current_dir)?;
                 return Ok(templates);
             }
         }
         println!("{}", format!("parse import file: {}", file).green());
         {
-            ds.borrow_mut().push(digest);
+            parsed_file.borrow_mut().push(digest);
         }
-        let template = Template::from_to_yaml(&yaml)?;
+        let template: Template = serde_yaml::from_str(&yaml)?;
         if template.imports.is_empty() {
             env::set_current_dir(current_dir)?;
             return Ok(templates);
         }
         for import in &template.imports {
-            let childes = Self::parse_import(&import, ds.clone())?;
+            let childes = Self::parse(&import, parsed_file.clone())?;
             if !childes.is_empty() {
                 for child in childes {
                     templates.push(child);
@@ -106,17 +105,5 @@ impl Default for Template {
             vars: Default::default(),
             requests: Default::default(),
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use std::env;
-
-    #[test]
-    fn test() {
-        use std::fs;
-        env::set_current_dir("D:/Projects/rs/yurl");
-        let _ = fs::read_to_string("var.yaml").unwrap();
     }
 }
