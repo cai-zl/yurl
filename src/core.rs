@@ -40,7 +40,7 @@ impl Template {
                 if template.vars.contains_key(&k) {
                     println!(
                         "{}",
-                        format!("duplicated variable: [{}], new value: [{}].", &k, &v).yellow()
+                        format!("duplicated variable: [{}], new value: [{}]", &k, &v).yellow()
                     );
                 }
                 template.vars.insert(k, v);
@@ -69,16 +69,12 @@ impl Template {
         let parent_dir = file_path.parent().unwrap();
         env::set_current_dir(parent_dir)?;
         let digest = md5::compute(&yaml);
-        {
-            if parsed_file.borrow().contains(&digest) {
-                env::set_current_dir(current_dir)?;
-                return Ok(templates);
-            }
+        if parsed_file.borrow().contains(&digest) {
+            env::set_current_dir(current_dir)?;
+            return Ok(templates);
         }
-        println!("{}", format!("parse import file: {}", file).green());
-        {
-            parsed_file.borrow_mut().push(digest);
-        }
+        println!("{}", format!("parse file: {}", file).green());
+        parsed_file.borrow_mut().push(digest);
         let template: Template = serde_yaml::from_str(&yaml)?;
         if template.imports.is_empty() {
             env::set_current_dir(current_dir)?;
