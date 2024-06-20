@@ -1,15 +1,18 @@
-use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::error::Error;
+use std::{cmp::Ordering, path::Path};
 
 use serde::{Deserialize, Serialize};
 
 use crate::core::error::YurlError;
 
+use super::multipart::MultipartBuilder;
+
 const CONTENT_TYPE_KEY: &str = "Content-Type";
 const CONTENT_TYPE_JSON: &str = "application/json";
 const CONTENT_TYPE_FROM: &str = "application/x-www-form-urlencoded";
 const CONTENT_TYPE_URL: &str = "application/x-www-form-urlencoded";
+const CONTENT_TYPE_FILE: &str = "multipart/form-data";
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Request {
@@ -79,7 +82,21 @@ impl Request {
             }
             ContentType::JSON => response = request.send_json(&self.params)?,
             ContentType::FILE => {
-                return Err(Box::new(YurlError::new("not support file")));
+                if self.method != Method::POST {
+                    return Err(Box::new(YurlError::new("file request only support POST")));
+                }
+                let mut multipart = MultipartBuilder::new();
+                for (k, v) in &self.params {
+                    if v.starts_with("FILE(") && v.ends_with(")") {
+                        multipart = multipart.add_file(k, Path::new(&v[5..v.len()-1]))?;
+                    } else {
+                        multipart = multipart.add_text(k, v)?;
+                    }
+                }
+                let (content_type, data) = multipart.finish()?;
+                response = request
+                    .set(CONTENT_TYPE_KEY, &content_type)
+                    .send_bytes(&data)?
             }
         }
         if response.status() == 200 {
@@ -138,7 +155,7 @@ impl ContentType {
             ContentType::URLENCODED => (CONTENT_TYPE_KEY, CONTENT_TYPE_URL),
             ContentType::JSON => (CONTENT_TYPE_KEY, CONTENT_TYPE_JSON),
             ContentType::FORM => (CONTENT_TYPE_KEY, CONTENT_TYPE_FROM),
-            ContentType::FILE => (CONTENT_TYPE_KEY, CONTENT_TYPE_FROM),
+            ContentType::FILE => (CONTENT_TYPE_KEY, CONTENT_TYPE_FILE),
         }
     }
 }
@@ -149,4 +166,20 @@ pub enum ResponseType {
     JSON,
     HTML,
     FILE,
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::Path;
+
+    use crate::core::multipart::MultipartRequest;
+
+    #[test]
+    fn upload_file() {
+        let req = ureq::request("POST", "http://127.0.0.1:8000/upload");
+        let res = req
+            .send_multipart_file("file", Path::new("D:\\Projects\\rs\\yurl\\var.yaml"))
+            .unwrap();
+        println!("{}", res.into_string().unwrap());
+    }
 }
