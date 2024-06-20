@@ -2,6 +2,7 @@ use std::error::Error;
 
 use crate::core::error::YurlError;
 
+#[derive(Debug)]
 pub enum Expression {
     Variable(String),
     Function(String),
@@ -42,20 +43,22 @@ impl Expression {
 
     pub fn parse(expression: &str) -> Result<Self, Box<dyn Error>> {
         if expression.starts_with("${") && expression.ends_with("}") {
-            return match &expression[2..5] {
-                "var" => Ok(Expression::Variable(
-                    expression[2..expression.len() - 1].to_string(),
-                )),
-                "fun" => Ok(Expression::Function(
-                    expression[2..expression.len() - 1].to_string(),
-                )),
-                "res" => Ok(Expression::Response(
-                    expression[2..expression.len() - 1].to_string(),
-                )),
-                _ => Err(Box::new(YurlError::new("not supported expression type"))),
+            let expr: &str = &expression[2..expression.len() - 1];
+            let fields: Vec<&str> = expr.split(".").map(|m| m).collect();
+            return match fields[0] {
+                "var" => Ok(Expression::Variable(expr.to_string())),
+                "fun" => Ok(Expression::Function(expr.to_string())),
+                "res" => Ok(Expression::Response(expr.to_string())),
+                _ => Err(Box::new(YurlError::new(&format!(
+                    "not supported expression type: {}",
+                    fields[0]
+                )))),
             };
         }
-        Err(Box::new(YurlError::new("expression formatting error")))
+        Err(Box::new(YurlError::new(&format!(
+            "expression {} formatting error",
+            expression,
+        ))))
     }
 
     pub fn variable_parse(expression: &str) -> Result<String, Box<dyn Error>> {

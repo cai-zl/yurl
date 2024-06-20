@@ -44,15 +44,15 @@ impl Execute for RunArg {
             };
             for request in template.requests.iter_mut() {
                 // parse url
-                _ = parse(&ev, &mut request.url);
+                _ = parse(&ev, &mut request.url)?;
                 // parse params
-                let _ = &request.params.iter_mut().for_each(|(_, v)| {
-                    _ = parse(&ev, v);
-                });
+                for (_, v) in &mut request.params {
+                    _ = parse(&ev, v)?;
+                }
                 // parse headers
-                let _ = &request.headers.iter_mut().for_each(|(_, v)| {
-                    _ = parse(&ev, v);
-                });
+                for (_, v) in &mut request.headers {
+                    _ = parse(&ev, v)?;
+                }
                 let res = request.run()?;
                 request.response = Some(res);
                 ev.responses.insert(&request.name, request);
@@ -89,14 +89,14 @@ impl Execute for RunArg {
     }
 }
 
-fn parse(template: &ExpressionValue, content: &mut String) -> Result<(), Box<dyn Error>> {
+fn parse(ev: &ExpressionValue, content: &mut String) -> Result<(), Box<dyn Error>> {
     let expressions = Expression::parse_from_str(&content)?;
     for expression in expressions {
         let new_content: String;
         match Expression::parse(&expression)? {
             Expression::Variable(expr) => {
                 let key = Expression::variable_parse(&expr)?;
-                match template.variables.get(&key) {
+                match ev.variables.get(&key) {
                     Some(v) => {
                         new_content = content.replace(&expression, v);
                         content.clear();
@@ -112,7 +112,7 @@ fn parse(template: &ExpressionValue, content: &mut String) -> Result<(), Box<dyn
             }
             Expression::Function(expr) => {
                 let key = Expression::function_parse(&expr)?;
-                match template.functions.get(&key) {
+                match ev.functions.get(&key) {
                     Some(f) => {
                         new_content = content.replace(&expression, &(f.fun)());
                         content.clear();
@@ -124,17 +124,11 @@ fn parse(template: &ExpressionValue, content: &mut String) -> Result<(), Box<dyn
                             key
                         ))));
                     }
-                }
+                };
             }
             Expression::Response(expr) => {
                 let re = Expression::response_parse(&expr)?;
-                match template.responses.get(&re.parent.as_str()) {
-                    None => {
-                        return Err(Box::new(YurlError::new(&format!(
-                            "request [{}] does not exist or is not executed.",
-                            &re.parent
-                        ))));
-                    }
+                match ev.responses.get(&re.parent.as_str()) {
                     Some(r) => {
                         let res = serde_json::from_str(
                             &r.response.clone().unwrap_or(Default::default()),
@@ -144,9 +138,15 @@ fn parse(template: &ExpressionValue, content: &mut String) -> Result<(), Box<dyn
                         content.clear();
                         content.push_str(&new_content);
                     }
-                }
+                    None => {
+                        return Err(Box::new(YurlError::new(&format!(
+                            "request [{}] does not exist or is not executed.",
+                            &re.parent
+                        ))));
+                    }
+                };
             }
-        }
+        };
     }
     Ok(())
 }
@@ -220,11 +220,13 @@ impl<'a> ResponseJson<'a> {
 
 #[cfg(test)]
 mod tests {
-    use std::error::Error;
+    use std::{collections::HashMap, error::Error, str::FromStr};
 
     use serde_json::json;
 
-    use crate::cmd::run::ResponseJson;
+    use crate::{cmd::run::ResponseJson, core::function::Function};
+
+    use super::{parse, ExpressionValue};
 
     #[test]
     fn test_json() -> Result<(), Box<dyn Error>> {
@@ -240,5 +242,25 @@ mod tests {
         let v = v.get("b").unwrap().get(1);
         dbg!(v);
         Ok(())
+    }
+
+    #[test]
+    fn test_for() {
+        let vars: HashMap<String, String> = Default::default();
+        let ev = ExpressionValue {
+            variables: &vars,
+            functions: Function::functions(),
+            responses: Default::default(),
+        };
+        let mut content = String::from_str("${res.date.da}/dasd").unwrap();
+        let res = parse(&ev, &mut content);
+        match res {
+            Ok(_) => {
+                println!("ok")
+            }
+            Err(e) => {
+                println!("{}", e.to_string())
+            }
+        }
     }
 }
