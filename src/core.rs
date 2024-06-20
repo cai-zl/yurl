@@ -1,8 +1,8 @@
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::error::Error;
-use std::fs;
-use std::os::windows::fs::MetadataExt;
-use std::{cell::RefCell, fs::File};
+use std::path::Path;
+use std::{env, fs};
 
 use clap::error::Result;
 use colored::Colorize;
@@ -24,6 +24,7 @@ pub struct Template {
     pub imports: Vec<String>,
     #[serde(default)]
     pub vars: HashMap<String, String>,
+    #[serde(default)]
     pub requests: Vec<Request>,
 }
 
@@ -63,10 +64,15 @@ impl Template {
 
     fn parse_import(file: &str, ds: RefCell<Vec<Digest>>) -> Result<Vec<Self>, Box<dyn Error>> {
         let mut templates = Vec::new();
+        let file_path = Path::new(file);
+        let current_dir = env::current_dir()?;
         let yaml = fs::read_to_string(file)?;
+        let parent_dir = file_path.parent().unwrap();
+        env::set_current_dir(parent_dir)?;
         let digest = md5::compute(&yaml);
         {
             if ds.borrow().contains(&digest) {
+                env::set_current_dir(current_dir)?;
                 return Ok(templates);
             }
         }
@@ -75,6 +81,10 @@ impl Template {
             ds.borrow_mut().push(digest);
         }
         let template = Template::from_to_yaml(&yaml)?;
+        if template.imports.is_empty() {
+            env::set_current_dir(current_dir)?;
+            return Ok(templates);
+        }
         for import in &template.imports {
             let childes = Self::parse_import(&import, ds.clone())?;
             if !childes.is_empty() {
@@ -83,6 +93,7 @@ impl Template {
                 }
             }
         }
+        env::set_current_dir(current_dir)?;
         templates.push(template);
         Ok(templates)
     }
@@ -95,5 +106,17 @@ impl Default for Template {
             vars: Default::default(),
             requests: Default::default(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::env;
+
+    #[test]
+    fn test() {
+        use std::fs;
+        env::set_current_dir("D:/Projects/rs/yurl");
+        let _ = fs::read_to_string("var.yaml").unwrap();
     }
 }

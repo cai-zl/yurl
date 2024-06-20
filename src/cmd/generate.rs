@@ -7,6 +7,9 @@ use colored::Colorize;
 use crate::cmd::Execute;
 
 const YURL_TEMPLATE: &str = r#"# import other yurl yaml file.
+# relative or absolute paths can be used
+# relative to the current yaml file
+# ./ is mandatory
 imports:
   - ./var.yaml
 # variable, use ${var.name} can obtain.
