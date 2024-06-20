@@ -17,3 +17,6 @@ tabled = "0.15.0"
 chrono = "0.4"
 ureq = {version = "2.9.7",features = ["json"]}
 md5 = "0.7.0"
+mime = "0.3"
+mime_guess = "2.0"
+rand = "0.8.5"
