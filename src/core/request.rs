@@ -88,7 +88,7 @@ impl Request {
                 let mut multipart = MultipartBuilder::new();
                 for (k, v) in &self.params {
                     if v.starts_with("FILE(") && v.ends_with(")") {
-                        multipart = multipart.add_file(k, Path::new(&v[5..v.len()-1]))?;
+                        multipart = multipart.add_file(k, Path::new(&v[5..v.len() - 1]))?;
                     } else {
                         multipart = multipart.add_text(k, v)?;
                     }
@@ -130,6 +130,26 @@ impl PartialOrd<Self> for Request {
 impl Ord for Request {
     fn cmp(&self, other: &Self) -> Ordering {
         self.order.cmp(&other.order)
+    }
+}
+
+impl Default for Request {
+    fn default() -> Self {
+        let mut h = HashMap::new();
+        h.insert("Authorization".to_string(), "xxxxxxxxxxxxxxx".to_string());
+        let mut p = HashMap::new();
+        p.insert("name".to_string(), "${var.name}".to_string());
+        Self {
+            order: 1,
+            name: "example".to_string(),
+            url: "http://127.0.0.1:8080/example".to_string(),
+            method: Method::GET,
+            headers: h,
+            params: p,
+            content_type: ContentType::URLENCODED,
+            response_type: ResponseType::JSON,
+            response: Default::default(),
+        }
     }
 }
 

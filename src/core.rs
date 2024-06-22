@@ -17,8 +17,8 @@ use self::error::YurlError;
 pub mod error;
 pub mod expression;
 pub mod function;
-pub mod request;
 pub mod multipart;
+pub mod request;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Template {
