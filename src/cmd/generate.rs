@@ -56,8 +56,8 @@ pub struct GenerateArg {
     pub out: String,
     #[arg(long, short)]
     pub url: Option<String>,
-    #[arg(long, short, default_value = "full", value_parser = ["get","post","pust","delete","file","full"])]
-    pub model: String,
+    #[arg(short,long, default_value = "full", value_parser = ["get","post","pust","delete","file","full"])]
+    pub type_: String,
 }
 
 impl Execute for GenerateArg {
@@ -65,7 +65,7 @@ impl Execute for GenerateArg {
         let mut template: Template = Default::default();
         template.imports.push("./vars.yaml".to_string());
         template.vars.insert("name".to_string(), "tom".to_string());
-        match self.model.as_str() {
+        match self.type_.as_str() {
             "get" => {
                 let mut request: Request = Default::default();
                 if let Some(url) = self.url {
