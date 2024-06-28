@@ -90,7 +90,66 @@ impl Expression {
         }
         Ok(ResponseExpression {
             parent: keys.get(1).unwrap().to_string(),
-            path: keys.get(2).unwrap().to_string(),
+            path: keys[2..].join(".").to_string(),
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Expression;
+
+    #[test]
+    fn test_parse_from_str() {
+        let expr = Expression::parse_from_str("${var.prefix}/example").unwrap();
+        assert_eq!(expr[0], "${var.prefix}");
+        let expr = Expression::parse_from_str("${fun.prefix}/example").unwrap();
+        assert_eq!(expr[0], "${fun.prefix}");
+        let expr = Expression::parse_from_str("${res.prefix}/example").unwrap();
+        assert_eq!(expr[0], "${res.prefix}");
+    }
+
+    #[test]
+    fn test_parse() {
+        let expr = Expression::parse("${var.prefix}").unwrap();
+        match expr {
+            Expression::Variable(v) => assert_eq!(v, "var.prefix"),
+            _ => {}
+        }
+    }
+
+    #[test]
+    fn test_variable_parse() {
+        let expr = Expression::parse("${var.prefix}").unwrap();
+        match expr {
+            Expression::Variable(v) => {
+                assert_eq!("prefix", Expression::variable_parse(&v).unwrap())
+            }
+            _ => {}
+        }
+    }
+
+    #[test]
+    fn test_function_parse(){
+        let expr = Expression::parse("${fun.uuid}").unwrap();
+        match expr {
+            Expression::Function(v) => {
+                assert_eq!("uuid", Expression::function_parse(&v).unwrap())
+            }
+            _ => {}
+        }
+    }
+
+    #[test]
+    fn test_response_parse(){
+        let expr = Expression::parse("${res.example.data.code}").unwrap();
+        match expr {
+            Expression::Response(v) => {
+                let re = Expression::response_parse(&v).unwrap();
+                assert_eq!("example", re.parent);
+                assert_eq!("data.code", re.path);
+            }
+            _ => {}
+        }
     }
 }

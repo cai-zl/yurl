@@ -190,16 +190,67 @@ pub enum ResponseType {
 
 #[cfg(test)]
 mod tests {
-    use std::path::Path;
+    use serde_yaml::Value;
 
-    use crate::core::multipart::MultipartRequest;
+    use super::Request;
 
     #[test]
-    fn upload_file() {
-        let req = ureq::request("POST", "http://127.0.0.1:8000/upload");
-        let res = req
-            .send_multipart_file("file", Path::new("D:\\Projects\\rs\\yurl\\var.yaml"))
-            .unwrap();
-        println!("{}", res.into_string().unwrap());
+    fn test_run() {
+        let request_yaml = r#"order: 1
+name: post-form
+url: http://127.0.0.1:8000/post/form
+method: POST
+headers:
+params:
+  name: post-form
+content_type: FORM
+response_type: JSON
+"#;
+        let request:Request = serde_yaml::from_str(request_yaml).unwrap();
+        let resp = request.run().unwrap();
+        assert_eq!(resp,"{\"code\":200,\"message\":\"success\",\"data\":{\"name\":\"post-form\"}}");
+    }
+
+    #[test]
+    fn test_yaml_parse() {
+        let yaml = r#"vars:
+  name: caizl
+  age: 18
+email: 740662047@qq.com
+arr:
+  - hello
+  - test
+obj:
+  gate: zuul
+  put: map
+  list:
+    - consul
+    - nacos"#;
+        let value: Value = serde_yaml::from_str(&yaml).unwrap();
+        assert_eq!(true, value.is_mapping());
+        assert_eq!(
+            true,
+            value
+                .as_mapping()
+                .unwrap()
+                .get("arr")
+                .unwrap()
+                .is_sequence()
+        );
+        assert_eq!(
+            true,
+            value.as_mapping().unwrap().get("obj").unwrap().is_mapping()
+        );
+        assert_eq!(
+            true,
+            value
+                .as_mapping()
+                .unwrap()
+                .get("obj")
+                .unwrap()
+                .get("list")
+                .unwrap()
+                .is_sequence()
+        );
     }
 }

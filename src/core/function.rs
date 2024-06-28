@@ -62,3 +62,9 @@ impl Function {
         functions
     }
 }
+
+#[cfg(test)]
+mod tests{
+
+    
+}

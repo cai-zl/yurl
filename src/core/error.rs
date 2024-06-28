@@ -22,3 +22,9 @@ impl YurlError {
         }
     }
 }
+
+#[cfg(test)]
+mod tests{
+
+    
+}
