@@ -14,7 +14,7 @@ use crate::core::expression::Expression;
 use crate::core::function::Function;
 use crate::core::request::Request;
 use crate::core::Template;
-use crate::{println_green, yurl_error};
+use crate::{success, yurl_error};
 
 use super::Execute;
 
@@ -77,10 +77,10 @@ impl Execute for RunArg {
                 .build()
                 .with(Style::rounded())
                 .to_string();
-            println_green!(table);
+            success!(table);
         } else {
             for item in items {
-                println_green!(format!(
+                success!(format!(
                     "[{}] -- [{}] -- {}",
                     item.name, item.url, item.response
                 ));

@@ -8,7 +8,7 @@ use tabled::{Table, Tabled};
 
 use crate::core::error::YurlError;
 use crate::core::function::Function;
-use crate::{println_green, yurl_error};
+use crate::{success, yurl_error};
 
 use super::Execute;
 
@@ -70,7 +70,7 @@ impl Execute for ListArg {
             .build()
             .with(Style::rounded())
             .to_string();
-        println_green!(table);
+        success!(table);
         Ok(())
     }
 }
@@ -87,7 +87,7 @@ impl Execute for CallArg {
         let key: String = self.key.unwrap();
         match Function::functions().get(&key) {
             None => Err(yurl_error!(&format!("undefined function: {}", key))),
-            Some(f) => Ok(println_green!((f.fun)())),
+            Some(f) => Ok(success!((f.fun)())),
         }
     }
 }
@@ -118,6 +118,6 @@ impl Execute for SearchArg {
             .build()
             .with(Style::rounded())
             .to_string();
-        Ok(println_green!(table.green()))
+        Ok(success!(table))
     }
 }

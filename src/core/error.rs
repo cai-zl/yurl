@@ -23,5 +23,12 @@ impl YurlError {
     }
 }
 
+#[macro_export]
+macro_rules! yurl_error {
+    ($e:expr) => {
+        Box::new(YurlError::new($e))
+    };
+}
+
 #[cfg(test)]
 mod tests {}

@@ -5,61 +5,62 @@ use chrono::Local;
 type Fun = fn() -> String;
 
 pub struct Function {
-    pub key: String,
-    pub about: String,
+    pub key: &'static str,
+    pub about: &'static str,
     pub fun: Fun,
 }
 
+macro_rules! functions {
+    ($($e:expr),*) => {
+        {
+            let mut functions:HashMap<String,Function> = HashMap::new();
+            $(
+                functions.insert($e.key.to_string(),$e);
+            )*
+            functions
+        }
+    };
+}
+
 impl Function {
+    pub fn new(key: &'static str, about: &'static str, fun: Fun) -> Self {
+        Self { key, about, fun }
+    }
+
     pub fn functions() -> HashMap<String, Function> {
-        let mut functions = HashMap::new();
-
         // datetime
-        let timestamp = Function {
-            key: "timestamp".to_string(),
-            about: "get current timestamp.".to_string(),
-            fun: || Local::now().timestamp().to_string(),
-        };
-        let timestamp_millis = Function {
-            key: "timestamp_millis".to_string(),
-            about: "get current timestamp millis.".to_string(),
-            fun: || Local::now().timestamp_millis().to_string(),
-        };
-        let datetime = Function {
-            key: "datetime".to_string(),
-            about: "get current datetime.".to_string(),
-            fun: || Local::now().format("%Y-%m-%d %H:%M:%S").to_string(),
-        };
-        let date = Function {
-            key: "date".to_string(),
-            about: "get current date.".to_string(),
-            fun: || Local::now().format("%Y-%m-%d").to_string(),
-        };
-        let time = Function {
-            key: "time".to_string(),
-            about: "get current time.".to_string(),
-            fun: || Local::now().format("%H:%M:%S").to_string(),
-        };
-        let date_min = Function {
-            key: "date_min".to_string(),
-            about: "get current date min time.".to_string(),
-            fun: || Local::now().format("%Y-%m-%d 00:00:00").to_string(),
-        };
-        let date_max = Function {
-            key: "date_max".to_string(),
-            about: "get current date max time.".to_string(),
-            fun: || Local::now().format("%Y-%m-%d 23:59:59").to_string(),
-        };
+        let timestamp = Self::new("timestamp", "get current timestamp.", || {
+            Local::now().timestamp().to_string()
+        });
+        let timestamp_millis =
+            Self::new("timestamp_millis", "get current timestamp millis.", || {
+                Local::now().timestamp_millis().to_string()
+            });
+        let datetime = Self::new("datetime", "get current datetime.", || {
+            Local::now().format("%Y-%m-%d %H:%M:%S").to_string()
+        });
+        let date = Self::new("date", "get current date.", || {
+            Local::now().format("%Y-%m-%d").to_string()
+        });
+        let time = Self::new("time", "get current time.", || {
+            Local::now().format("%H:%M:%S").to_string()
+        });
+        let date_min = Self::new("date_min", "get current date min time.", || {
+            Local::now().format("%Y-%m-%d 00:00:00").to_string()
+        });
+        let date_max = Self::new("date_max", "get current date max time.", || {
+            Local::now().format("%Y-%m-%d 23:59:59").to_string()
+        });
 
-        functions.insert(timestamp.key.clone(), timestamp);
-        functions.insert(timestamp_millis.key.clone(), timestamp_millis);
-        functions.insert(datetime.key.clone(), datetime);
-        functions.insert(date.key.clone(), date);
-        functions.insert(time.key.clone(), time);
-        functions.insert(date_min.key.clone(), date_min);
-        functions.insert(date_max.key.clone(), date_max);
-
-        functions
+        functions![
+            timestamp,
+            timestamp_millis,
+            datetime,
+            date,
+            time,
+            date_min,
+            date_max
+        ]
     }
 }
 

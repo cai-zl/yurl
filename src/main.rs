@@ -4,7 +4,7 @@ use colored::Colorize;
 
 use yurl::{
     cmd::{Commands, Execute},
-    println_red,
+    error,
 };
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -13,19 +13,19 @@ fn main() -> Result<(), Box<dyn Error>> {
         Commands::Run(arg) => match arg.run() {
             Ok(()) => {}
             Err(e) => {
-                println_red!(e.to_string())
+                error!(e.to_string())
             }
         },
         Commands::Function(arg) => match arg.run() {
             Ok(()) => {}
             Err(e) => {
-                println_red!(e.to_string())
+                error!(e.to_string())
             }
         },
         Commands::Generate(arg) => match arg.run() {
             Ok(()) => {}
             Err(e) => {
-                println_red!(e.to_string())
+                error!(e.to_string())
             }
         },
     }
