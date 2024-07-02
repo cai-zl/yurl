@@ -1,6 +1,6 @@
 use std::error::Error;
 
-use crate::core::error::YurlError;
+use crate::{core::error::YurlError, yurl_error};
 
 #[derive(Debug)]
 pub enum Expression {
@@ -49,24 +49,22 @@ impl Expression {
                 "var" => Ok(Expression::Variable(expr.to_string())),
                 "fun" => Ok(Expression::Function(expr.to_string())),
                 "res" => Ok(Expression::Response(expr.to_string())),
-                _ => Err(Box::new(YurlError::new(&format!(
+                _ => Err(yurl_error!(&format!(
                     "not supported expression type: {}",
                     fields[0]
-                )))),
+                ))),
             };
         }
-        Err(Box::new(YurlError::new(&format!(
+        Err(yurl_error!(&format!(
             "expression {} formatting error",
             expression,
-        ))))
+        )))
     }
 
     pub fn variable_parse(expression: &str) -> Result<String, Box<dyn Error>> {
         let keys: Vec<&str> = expression.split(".").collect();
         if keys.len() != 2 {
-            return Err(Box::new(YurlError::new(
-                "variable expression formatting error",
-            )));
+            return Err(yurl_error!("variable expression formatting error"));
         }
         Ok(keys.get(1).unwrap().to_string())
     }
@@ -74,9 +72,7 @@ impl Expression {
     pub fn function_parse(expression: &str) -> Result<String, Box<dyn Error>> {
         let keys: Vec<&str> = expression.split(".").collect();
         if keys.len() != 2 {
-            return Err(Box::new(YurlError::new(
-                "function expression formatting error",
-            )));
+            return Err(yurl_error!("function expression formatting error"));
         }
         Ok(keys.get(1).unwrap().to_string())
     }
@@ -84,9 +80,7 @@ impl Expression {
     pub fn response_parse(expression: &str) -> Result<ResponseExpression, Box<dyn Error>> {
         let keys: Vec<&str> = expression.split(".").collect();
         if keys.len() < 3 {
-            return Err(Box::new(YurlError::new(
-                "response expression formatting error",
-            )));
+            return Err(yurl_error!("response expression formatting error"));
         }
         Ok(ResponseExpression {
             parent: keys.get(1).unwrap().to_string(),

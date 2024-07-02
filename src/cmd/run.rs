@@ -14,6 +14,7 @@ use crate::core::expression::Expression;
 use crate::core::function::Function;
 use crate::core::request::Request;
 use crate::core::Template;
+use crate::{println_green, yurl_error};
 
 use super::Execute;
 
@@ -76,13 +77,13 @@ impl Execute for RunArg {
                 .build()
                 .with(Style::rounded())
                 .to_string();
-            println!("{}", table.green());
+            println_green!(table);
         } else {
             for item in items {
-                println!(
-                    "{}",
-                    format!("[{}] -- [{}] -- {}", item.name, item.url, item.response).green()
-                );
+                println_green!(format!(
+                    "[{}] -- [{}] -- {}",
+                    item.name, item.url, item.response
+                ));
             }
         }
         Ok(())
@@ -103,10 +104,7 @@ fn parse(ev: &ExpressionValue, content: &mut String) -> Result<(), Box<dyn Error
                         content.push_str(&new_content);
                     }
                     None => {
-                        return Err(Box::new(YurlError::new(&format!(
-                            "undefined variable: {}",
-                            key
-                        ))));
+                        return Err(yurl_error!(&format!("undefined variable: {}", key)));
                     }
                 }
             }
@@ -119,10 +117,7 @@ fn parse(ev: &ExpressionValue, content: &mut String) -> Result<(), Box<dyn Error
                         content.push_str(&new_content);
                     }
                     None => {
-                        return Err(Box::new(YurlError::new(&format!(
-                            "undefined function: {}",
-                            key
-                        ))));
+                        return Err(yurl_error!(&format!("undefined function: {}", key)));
                     }
                 };
             }
@@ -139,10 +134,10 @@ fn parse(ev: &ExpressionValue, content: &mut String) -> Result<(), Box<dyn Error
                         content.push_str(&new_content);
                     }
                     None => {
-                        return Err(Box::new(YurlError::new(&format!(
+                        return Err(yurl_error!(&format!(
                             "request [{}] does not exist or is not executed.",
                             &re.parent
-                        ))));
+                        )));
                     }
                 };
             }
@@ -212,7 +207,7 @@ impl<'a> ResponseJson<'a> {
             }
         }
         return match self.value {
-            None => Err(Box::new(YurlError::new("response expression parse error."))),
+            None => Err(yurl_error!("response expression parse error.")),
             Some(v) => Ok(v),
         };
     }

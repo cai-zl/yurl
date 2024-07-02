@@ -11,12 +11,14 @@ use md5::Digest;
 use serde::{Deserialize, Serialize};
 
 use crate::core::request::Request;
+use crate::{println_green, println_yellow, yurl_error};
 
 use self::error::YurlError;
 
 pub mod error;
 pub mod expression;
 pub mod function;
+pub mod macros;
 pub mod multipart;
 pub mod request;
 
@@ -39,19 +41,16 @@ impl Template {
         for t in templates {
             for (k, v) in t.vars {
                 if template.vars.contains_key(&k) {
-                    println!(
-                        "{}",
-                        format!("duplicated variable: [{}], new value: [{}]", &k, &v).yellow()
-                    );
+                    println_yellow!(format!(
+                        "duplicated variable: [{}], new value: [{}]",
+                        &k, &v
+                    ));
                 }
                 template.vars.insert(k, v);
             }
             for r in t.requests {
                 if template.requests.contains(&r) {
-                    return Err(Box::new(YurlError::new(&format!(
-                        "duplicated request: {}",
-                        &r.name
-                    ))));
+                    return Err(yurl_error!(&format!("duplicated request: {}", &r.name)));
                 }
                 template.requests.push(r);
             }
@@ -74,7 +73,7 @@ impl Template {
             env::set_current_dir(current_dir)?;
             return Ok(templates);
         }
-        println!("{}", format!("parse file: {}", file).green());
+        println_green!(format!("parse file: {}", file));
         parsed_file.borrow_mut().push(digest);
         let template: Template = serde_yaml::from_str(&yaml)?;
         if template.imports.is_empty() {

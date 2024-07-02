@@ -5,6 +5,7 @@ use std::{cmp::Ordering, path::Path};
 use serde::{Deserialize, Serialize};
 
 use crate::core::error::YurlError;
+use crate::yurl_error;
 
 use super::multipart::MultipartBuilder;
 
@@ -83,7 +84,7 @@ impl Request {
             ContentType::JSON => response = request.send_json(&self.params)?,
             ContentType::FILE => {
                 if self.method != Method::POST {
-                    return Err(Box::new(YurlError::new("file request only support POST")));
+                    return Err(yurl_error!("file request only support POST"));
                 }
                 let mut multipart = MultipartBuilder::new();
                 for (k, v) in &self.params {
@@ -102,13 +103,13 @@ impl Request {
         if response.status() == 200 {
             Ok(response.into_string()?)
         } else {
-            return Err(Box::new(YurlError::new(&format!(
+            return Err(yurl_error!(&format!(
                 "request name: [{}], url: [{}] execute fail, status code: {}, message: {}",
                 self.name,
                 self.url,
                 response.status(),
                 response.status_text()
-            ))));
+            )));
         }
     }
 }

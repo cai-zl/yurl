@@ -7,6 +7,7 @@ use colored::Colorize;
 use crate::cmd::Execute;
 use crate::core::request::{ContentType, Method, Request};
 use crate::core::Template;
+use crate::println_green;
 
 const YURL_TEMPLATE: &str = r#"# import other yurl yaml file.
 # relative or absolute paths can be used
@@ -74,7 +75,7 @@ impl Execute for GenerateArg {
                 template.requests.push(request);
                 let yaml = serde_yaml::to_string(&template)?;
                 fs::write(&self.out, yaml)?;
-                Ok(println!("{}", format!("please view {}", self.out).green()))
+                Ok(println_green!(format!("please view {}", self.out)))
             }
             "post" => {
                 let mut request: Request = Default::default();
@@ -86,7 +87,7 @@ impl Execute for GenerateArg {
                 template.requests.push(request);
                 let yaml = serde_yaml::to_string(&template)?;
                 fs::write(&self.out, yaml)?;
-                Ok(println!("{}", format!("please view {}", self.out).green()))
+                Ok(println_green!(format!("please view {}", self.out)))
             }
             "put" => {
                 let mut request: Request = Default::default();
@@ -98,7 +99,7 @@ impl Execute for GenerateArg {
                 template.requests.push(request);
                 let yaml = serde_yaml::to_string(&template)?;
                 fs::write(&self.out, yaml)?;
-                Ok(println!("{}", format!("please view {}", self.out).green()))
+                Ok(println_green!(format!("please view {}", self.out)))
             }
             "delete" => {
                 let mut request: Request = Default::default();
@@ -110,7 +111,7 @@ impl Execute for GenerateArg {
                 template.requests.push(request);
                 let yaml = serde_yaml::to_string(&template)?;
                 fs::write(&self.out, yaml)?;
-                Ok(println!("{}", format!("please view {}", self.out).green()))
+                Ok(println_green!(format!("please view {}", self.out)))
             }
             "file" => {
                 let mut request: Request = Default::default();
@@ -122,10 +123,10 @@ impl Execute for GenerateArg {
                 template.requests.push(request);
                 let yaml = serde_yaml::to_string(&template)?;
                 fs::write(&self.out, yaml)?;
-                Ok(println!("{}", format!("please view {}", self.out).green()))
+                Ok(println_green!(format!("please view {}", self.out)))
             }
             "full" => match fs::write(&self.out, YURL_TEMPLATE) {
-                Ok(_) => Ok(println!("{}", format!("please view {}", self.out).green())),
+                Ok(_) => Ok(println_green!(format!("please view {}", self.out))),
                 Err(e) => Err(Box::new(e)),
             },
             _ => Ok(()),
