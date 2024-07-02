@@ -130,7 +130,7 @@ mod tests {
     }
 
     #[test]
-    fn test_function_parse(){
+    fn test_function_parse() {
         let expr = Expression::parse("${fun.uuid}").unwrap();
         match expr {
             Expression::Function(v) => {
@@ -141,7 +141,7 @@ mod tests {
     }
 
     #[test]
-    fn test_response_parse(){
+    fn test_response_parse() {
         let expr = Expression::parse("${res.example.data.code}").unwrap();
         match expr {
             Expression::Response(v) => {

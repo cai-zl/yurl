@@ -206,9 +206,12 @@ params:
 content_type: FORM
 response_type: JSON
 "#;
-        let request:Request = serde_yaml::from_str(request_yaml).unwrap();
+        let request: Request = serde_yaml::from_str(request_yaml).unwrap();
         let resp = request.run().unwrap();
-        assert_eq!(resp,"{\"code\":200,\"message\":\"success\",\"data\":{\"name\":\"post-form\"}}");
+        assert_eq!(
+            resp,
+            "{\"code\":200,\"message\":\"success\",\"data\":{\"name\":\"post-form\"}}"
+        );
     }
 
     #[test]

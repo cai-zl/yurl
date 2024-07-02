@@ -64,7 +64,4 @@ impl Function {
 }
 
 #[cfg(test)]
-mod tests{
-
-    
-}
+mod tests {}
