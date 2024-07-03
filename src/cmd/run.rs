@@ -4,7 +4,6 @@ use std::error::Error;
 
 use clap::Args;
 use colored::Colorize;
-use serde_json::Value;
 use tabled::builder::Builder;
 use tabled::settings::Style;
 use tabled::{Table, Tabled};
@@ -12,7 +11,9 @@ use tabled::{Table, Tabled};
 use crate::core::error::YurlError;
 use crate::core::expression::Expression;
 use crate::core::function::Function;
+use crate::core::json::Json;
 use crate::core::request::Request;
+use crate::core::yaml::Yaml;
 use crate::core::Template;
 use crate::{success, yurl_error};
 
@@ -28,7 +29,7 @@ pub struct RunArg {
 }
 
 struct ExpressionValue<'a> {
-    variables: &'a HashMap<String, String>,
+    variables: &'a Vec<serde_yaml::Value>,
     functions: HashMap<String, Function>,
     responses: HashMap<&'a str, &'a Request>,
 }
@@ -39,21 +40,17 @@ impl Execute for RunArg {
         template.requests.sort();
         {
             let mut ev = ExpressionValue {
-                variables: &template.vars,
+                variables: &template.variables,
                 functions: Function::functions(),
                 responses: Default::default(),
             };
             for request in template.requests.iter_mut() {
                 // parse url
-                _ = parse(&ev, &mut request.url)?;
+                _ = parse_str(&ev, &mut request.url)?;
                 // parse params
-                for (_, v) in &mut request.params {
-                    _ = parse(&ev, v)?;
-                }
+                _ = parse_param(&ev, &mut request.params)?;
                 // parse headers
-                for (_, v) in &mut request.headers {
-                    _ = parse(&ev, v)?;
-                }
+                _ = parse_header(&ev, &mut request.headers)?;
                 let res = request.run()?;
                 request.response = Some(res);
                 ev.responses.insert(&request.name, request);
@@ -67,7 +64,7 @@ impl Execute for RunArg {
                 name: format!("{}", m.name),
                 method: format!("{:?}", m.method),
                 url: format!("{}", m.url),
-                params: format!("{:?}", m.params),
+                params: format!("{:?}", serde_json::to_string(&m.params).unwrap()),
                 headers: format!("{:?}", m.headers),
                 response: m.response.clone().unwrap_or(Default::default()),
             })
@@ -90,21 +87,43 @@ impl Execute for RunArg {
     }
 }
 
-fn parse(ev: &ExpressionValue, content: &mut String) -> Result<(), Box<dyn Error>> {
-    let expressions = Expression::parse_from_str(&content)?;
+fn parse_str(ev: &ExpressionValue, url: &mut String) -> Result<(), Box<dyn Error>> {
+    let expressions = Expression::parse_from_str(&url)?;
     for expression in expressions {
-        let new_content: String;
+        let mut new_content: String;
         match Expression::parse(&expression)? {
             Expression::Variable(expr) => {
                 let key = Expression::variable_parse(&expr)?;
-                match ev.variables.get(&key) {
-                    Some(v) => {
-                        new_content = content.replace(&expression, v);
-                        content.clear();
-                        content.push_str(&new_content);
-                    }
-                    None => {
-                        return Err(yurl_error!(&format!("undefined variable: {}", key)));
+                for variable in ev.variables {
+                    let v = Yaml::new(&variable, key.clone()).get_value()?;
+                    match v {
+                        serde_yaml::Value::Null => {
+                            return Err(yurl_error!(&format!("undefined variable: {}", key)))
+                        }
+                        serde_yaml::Value::Bool(v) => {
+                            new_content = url.replace(&expression, &format!("{}", v));
+                            url.clear();
+                            url.push_str(&new_content);
+                        }
+                        serde_yaml::Value::Number(v) => {
+                            new_content = url.replace(&expression, &format!("{}", v));
+                            url.clear();
+                            url.push_str(&new_content);
+                        }
+                        serde_yaml::Value::String(v) => {
+                            new_content = url.replace(&expression, v);
+                            url.clear();
+                            url.push_str(&new_content);
+                        }
+                        serde_yaml::Value::Sequence(_) => {
+                            return Err(yurl_error!(&format!("undefined variable: {}", key)))
+                        }
+                        serde_yaml::Value::Mapping(_) => {
+                            return Err(yurl_error!(&format!("undefined variable: {}", key)))
+                        }
+                        serde_yaml::Value::Tagged(_) => {
+                            return Err(yurl_error!(&format!("undefined variable: {}", key)))
+                        }
                     }
                 }
             }
@@ -112,9 +131,9 @@ fn parse(ev: &ExpressionValue, content: &mut String) -> Result<(), Box<dyn Error
                 let key = Expression::function_parse(&expr)?;
                 match ev.functions.get(&key) {
                     Some(f) => {
-                        new_content = content.replace(&expression, &(f.fun)());
-                        content.clear();
-                        content.push_str(&new_content);
+                        new_content = url.replace(&expression, &(f.fun)());
+                        url.clear();
+                        url.push_str(&new_content);
                     }
                     None => {
                         return Err(yurl_error!(&format!("undefined function: {}", key)));
@@ -128,10 +147,10 @@ fn parse(ev: &ExpressionValue, content: &mut String) -> Result<(), Box<dyn Error
                         let res = serde_json::from_str(
                             &r.response.clone().unwrap_or(Default::default()),
                         )?;
-                        let v = ResponseJson::new(&res, re.path).get_value()?;
-                        new_content = content.replace(&expression, &v.to_string());
-                        content.clear();
-                        content.push_str(&new_content);
+                        let v = Json::new(&res, re.path).get_value()?;
+                        new_content = url.replace(&expression, &v.to_string());
+                        url.clear();
+                        url.push_str(&new_content);
                     }
                     None => {
                         return Err(yurl_error!(&format!(
@@ -144,6 +163,89 @@ fn parse(ev: &ExpressionValue, content: &mut String) -> Result<(), Box<dyn Error
         };
     }
     Ok(())
+}
+
+fn parse_param(ev: &ExpressionValue, param: &mut serde_yaml::Value) -> Result<(), Box<dyn Error>> {
+    match param {
+        serde_yaml::Value::Null => {}
+        serde_yaml::Value::Bool(_) => {}
+        serde_yaml::Value::Number(_) => {}
+        serde_yaml::Value::String(v) => {
+            let expr = Expression::parse_from_str(&v)?;
+            if expr.len() > 0 {
+                *param = parse(ev, v)?;
+            }
+        }
+        serde_yaml::Value::Sequence(v) => {
+            for ele in v.iter_mut() {
+                parse_param(ev, ele)?;
+            }
+        }
+        serde_yaml::Value::Mapping(v) => {
+            for ele in v.iter_mut() {
+                parse_param(ev, ele.1)?;
+            }
+        }
+        serde_yaml::Value::Tagged(_) => {
+            return Err(yurl_error!("parameter parsing error."));
+        }
+    }
+    Ok(())
+}
+
+fn parse_header(
+    ev: &ExpressionValue,
+    header: &mut HashMap<String, String>,
+) -> Result<(), Box<dyn Error>> {
+    for (_, mut v) in header.iter_mut() {
+        _ = parse_str(&ev, &mut v)?;
+    }
+    Ok(())
+}
+
+fn parse(ev: &ExpressionValue, content: &String) -> Result<serde_yaml::Value, Box<dyn Error>> {
+    let expressions = Expression::parse_from_str(&content)?;
+    for expression in expressions {
+        match Expression::parse(&expression)? {
+            Expression::Variable(expr) => {
+                let key = Expression::variable_parse(&expr)?;
+                for variable in ev.variables {
+                    let v = Yaml::new(&variable, key).get_value()?;
+                    return Ok(v.clone());
+                }
+            }
+            Expression::Function(expr) => {
+                let key = Expression::function_parse(&expr)?;
+                match ev.functions.get(&key) {
+                    Some(f) => {
+                        return Ok(serde_yaml::Value::String((f.fun)()));
+                    }
+                    None => {
+                        return Err(yurl_error!(&format!("undefined function: {}", key)));
+                    }
+                };
+            }
+            Expression::Response(expr) => {
+                let re = Expression::response_parse(&expr)?;
+                match ev.responses.get(&re.parent.as_str()) {
+                    Some(r) => {
+                        let res = serde_json::from_str(
+                            &r.response.clone().unwrap_or(Default::default()),
+                        )?;
+                        let v = Json::new(&res, re.path).get_value()?;
+                        return Ok(serde_yaml::to_value(v)?);
+                    }
+                    None => {
+                        return Err(yurl_error!(&format!(
+                            "request [{}] does not exist or is not executed.",
+                            &re.parent
+                        )));
+                    }
+                };
+            }
+        };
+    }
+    Ok(serde_yaml::Value::Null)
 }
 
 #[derive(Tabled, PartialEq, Eq)]
@@ -169,93 +271,91 @@ impl Ord for RequestItem {
     }
 }
 
-struct ResponseJson<'a> {
-    value: Option<&'a Value>,
-    path: Vec<String>,
-}
-
-impl<'a> ResponseJson<'a> {
-    fn new(value: &'a Value, path: String) -> Self {
-        let mut p: Vec<String> = path.split(".").map(|m| m.to_string()).collect();
-        p.reverse();
-        Self {
-            value: Some(value),
-            path: p,
-        }
-    }
-
-    fn get_value(mut self) -> Result<&'a Value, Box<dyn Error>> {
-        loop {
-            let k = self.path.pop();
-            match k {
-                Some(k) => {
-                    let s: Option<&Value>;
-                    if k.starts_with("#") {
-                        let k = &k[1..].parse::<usize>()?;
-                        s = self.value.unwrap().get(k);
-                    } else {
-                        s = self.value.unwrap().get(k);
-                    }
-                    match s {
-                        None => self.value = None,
-                        Some(v) => self.value = Some(v),
-                    };
-                }
-                None => {
-                    break;
-                }
-            }
-        }
-        return match self.value {
-            None => Err(yurl_error!("response expression parse error.")),
-            Some(v) => Ok(v),
-        };
-    }
-}
-
 #[cfg(test)]
 mod tests {
-    use std::{collections::HashMap, error::Error, str::FromStr};
-
     use serde_json::json;
 
-    use crate::{cmd::run::ResponseJson, core::function::Function};
+    use crate::core::{function::Function, json::Json, yaml::Yaml};
 
-    use super::{parse, ExpressionValue};
+    use super::{parse_param, parse_str, ExpressionValue};
 
     #[test]
-    fn test_json() -> Result<(), Box<dyn Error>> {
+    fn test_json() {
         let v = json!({"a": "s","b": ["2","1"]});
-        let v = ResponseJson::new(&v, "b.#1".to_string()).get_value()?;
-        dbg!(v);
-        Ok(())
+        let v = Json::new(&v, "b.#1".to_string()).get_value().unwrap();
+        assert_eq!(1, v.as_i64().unwrap());
     }
 
     #[test]
-    fn test_json2() -> Result<(), Box<dyn Error>> {
+    fn test_json2() {
         let v = json!({"a": "s","b": ["2","1"]});
         let v = v.get("b").unwrap().get(1);
-        dbg!(v);
-        Ok(())
+        assert_eq!(1, v.unwrap().as_i64().unwrap());
     }
 
     #[test]
-    fn test_for() {
-        let vars: HashMap<String, String> = Default::default();
+    fn test_json_to_yaml() {
+        let v = json!({"a": "s","b": ["2","1"]});
+        let yv = serde_yaml::to_value(&v).unwrap();
+        assert_eq!(true, yv.is_mapping());
+    }
+
+    #[test]
+    fn test_parse_param() {
+        let yaml = r#"vars:
+  name: caizl
+  age: 18
+email: 740662047@qq.com
+arr:
+  - hello
+  - test
+obj:
+  gate: zuul
+  put: map
+  list:
+    - consul
+    - nacos"#;
+        let value: serde_yaml::Value = serde_yaml::from_str(&yaml).unwrap();
+        let yaml2 = r#"vars:
+  name: caizl
+  age: 18
+email: 740662047@qq.com
+arr:
+  - hello
+  - test
+obj:
+  gate: ${var.obj.gate}
+  put: map
+  list:
+    - consul
+    - nacos"#;
+        let v = vec![value];
+        let mut value2: serde_yaml::Value = serde_yaml::from_str(&yaml2).unwrap();
         let ev = ExpressionValue {
-            variables: &vars,
+            variables: &v,
             functions: Function::functions(),
             responses: Default::default(),
         };
-        let mut content = String::from_str("${res.date.da}/dasd").unwrap();
-        let res = parse(&ev, &mut content);
-        match res {
-            Ok(_) => {
-                println!("ok")
-            }
-            Err(e) => {
-                println!("{}", e.to_string())
-            }
-        }
+        let _ = parse_param(&ev, &mut value2).unwrap();
+        let v = Yaml::new(&value2, "obj.gate".to_string())
+            .get_value()
+            .unwrap();
+        assert_eq!("zuul", v.as_str().unwrap());
+    }
+
+    #[test]
+    fn test_parse_url() {
+        let mut url = "http://${var.host}:${var.port}".to_string();
+        let yaml = r#"host: localhost
+port: 8080"#;
+        let value: serde_yaml::Value = serde_yaml::from_str(&yaml).unwrap();
+        let v = vec![value];
+        let ev = ExpressionValue {
+            variables: &v,
+            functions: Function::functions(),
+            responses: Default::default(),
+        };
+        let _ = parse_str(&ev, &mut url).unwrap();
+        assert_eq!("http://localhost:8080", url);
     }
 }

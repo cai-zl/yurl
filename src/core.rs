@@ -1,5 +1,4 @@
 use std::cell::RefCell;
-use std::collections::HashMap;
 use std::error::Error;
 use std::path::Path;
 use std::rc::Rc;
@@ -11,25 +10,29 @@ use md5::Digest;
 use serde::{Deserialize, Serialize};
 
 use crate::core::request::Request;
-use crate::{success, warn, yurl_error};
+use crate::{success, yurl_error};
 
 use self::error::YurlError;
 
 pub mod error;
 pub mod expression;
 pub mod function;
+pub mod json;
 pub mod log;
 pub mod multipart;
 pub mod request;
+pub mod yaml;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Template {
     #[serde(default)]
     pub imports: Vec<String>,
     #[serde(default)]
-    pub vars: HashMap<String, String>,
+    pub vars: serde_yaml::Value,
     #[serde(default)]
     pub requests: Vec<Request>,
+    #[serde(skip)]
+    pub variables: Vec<serde_yaml::Value>,
 }
 
 impl Template {
@@ -37,16 +40,10 @@ impl Template {
         let parsed_file = Rc::new(RefCell::new(Vec::new()));
         let templates = Self::parse(file, parsed_file)?;
         // merge
-        let mut template: Self = Default::default();
+        let mut template = Template::default();
         for t in templates {
-            for (k, v) in t.vars {
-                if template.vars.contains_key(&k) {
-                    warn!(format!(
-                        "duplicated variable: [{}], new value: [{}]",
-                        &k, &v
-                    ));
-                }
-                template.vars.insert(k, v);
+            if !t.vars.is_null() {
+                template.variables.push(t.vars);
             }
             for r in t.requests {
                 if template.requests.contains(&r) {
@@ -78,6 +75,7 @@ impl Template {
         let template: Template = serde_yaml::from_str(&yaml)?;
         if template.imports.is_empty() {
             env::set_current_dir(current_dir)?;
+            templates.push(template);
             return Ok(templates);
         }
         for import in &template.imports {
@@ -97,9 +95,65 @@ impl Template {
 impl Default for Template {
     fn default() -> Self {
         Self {
-            imports: Default::default(),
-            vars: Default::default(),
-            requests: Default::default(),
+            imports: Vec::default(),
+            vars: serde_yaml::Value::default(),
+            requests: Vec::default(),
+            variables: Vec::default(),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    #[test]
+    fn test_yaml_to_json() {
+        let yaml = r#"vars:
+  name: caizl
+  age: 18
+email: 740662047@qq.com
+arr:
+  - hello
+  - test
+obj:
+  gate: zuul
+  put: map
+  list:
+    - consul
+    - nacos"#;
+        let yaml_v: serde_yaml::Value = serde_yaml::from_str(yaml).unwrap();
+        let json_v = serde_json::json!(yaml_v);
+        let json = serde_json::to_string(&json_v);
+        println!("{:#?}", json);
+    }
+
+    #[test]
+    fn test_yaml_merge() {
+        let yaml = r#"vars:
+  name: caizl
+  age: 18
+email: 740662047@qq.com
+arr:
+  - hello
+  - test
+obj:
+  gate: zuul
+  put: map
+  list:
+    - consul
+    - nacos"#;
+        let yaml_v: serde_yaml::Value = serde_yaml::from_str(yaml).unwrap();
+        let obj = yaml_v.as_mapping().unwrap();
+        for (k, v) in obj {
+            match v {
+                serde_yaml::Value::Null => break,
+                serde_yaml::Value::Bool(_) => todo!(),
+                serde_yaml::Value::Number(_) => todo!(),
+                serde_yaml::Value::String(_) => todo!(),
+                serde_yaml::Value::Sequence(_) => todo!(),
+                serde_yaml::Value::Mapping(_) => todo!(),
+                serde_yaml::Value::Tagged(_) => todo!(),
+            }
         }
     }
 }

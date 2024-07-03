@@ -3,6 +3,7 @@ use std::error::Error;
 use std::{cmp::Ordering, path::Path};
 
 use serde::{Deserialize, Serialize};
+use serde_yaml::Mapping;
 
 use crate::core::error::YurlError;
 use crate::yurl_error;
@@ -22,7 +23,7 @@ pub struct Request {
     pub url: String,
     pub method: Method,
     pub headers: HashMap<String, String>,
-    pub params: HashMap<String, String>,
+    pub params: serde_yaml::Value,
     pub content_type: ContentType,
     pub response_type: ResponseType,
     #[serde(skip)]
@@ -68,17 +69,79 @@ impl Request {
         let response: ureq::Response;
         match self.content_type {
             ContentType::URLENCODED => {
-                for (k, v) in self.params.iter() {
-                    request = request.query(k, v);
+                for (k, v) in self.params.as_mapping().unwrap_or(&Mapping::new()) {
+                    match v {
+                        serde_yaml::Value::Null => {
+                            request = request.query(k.as_str().unwrap(), "");
+                        }
+                        serde_yaml::Value::Bool(v) => {
+                            request = request.query(k.as_str().unwrap(), &format!("{v}"));
+                        }
+                        serde_yaml::Value::Number(v) => {
+                            request = request.query(k.as_str().unwrap(), &format!("{v}"));
+                        }
+                        serde_yaml::Value::String(v) => {
+                            request = request.query(k.as_str().unwrap(), v);
+                        }
+                        serde_yaml::Value::Sequence(_) => {
+                            return Err(yurl_error!(&format!(
+                                "{} complex object not supported as parameters",
+                                CONTENT_TYPE_URL
+                            )))
+                        }
+                        serde_yaml::Value::Mapping(_) => {
+                            return Err(yurl_error!(&format!(
+                                "{} complex object not supported as parameters",
+                                CONTENT_TYPE_URL
+                            )))
+                        }
+                        serde_yaml::Value::Tagged(_) => {
+                            return Err(yurl_error!(&format!(
+                                "{} complex object not supported as parameters",
+                                CONTENT_TYPE_URL
+                            )))
+                        }
+                    }
                 }
                 response = request.call()?
             }
             ContentType::FORM => {
-                let body: Vec<(&str, &str)> = self
-                    .params
-                    .iter()
-                    .map(|(k, v)| (k.as_str(), v.as_str()))
-                    .collect();
+                let mut body: Vec<(&str, String)> = Vec::new();
+                for (k, v) in self.params.as_mapping().unwrap() {
+                    match v {
+                        serde_yaml::Value::Null => {
+                            body.push((k.as_str().unwrap(), "".to_string()));
+                        }
+                        serde_yaml::Value::Bool(v) => {
+                            body.push((k.as_str().unwrap(), v.to_string()));
+                        }
+                        serde_yaml::Value::Number(v) => {
+                            body.push((k.as_str().unwrap(), v.to_string()));
+                        }
+                        serde_yaml::Value::String(v) => {
+                            body.push((k.as_str().unwrap(), v.to_string()));
+                        }
+                        serde_yaml::Value::Sequence(_) => {
+                            return Err(yurl_error!(&format!(
+                                "{} complex object not supported as parameters",
+                                CONTENT_TYPE_FROM
+                            )))
+                        }
+                        serde_yaml::Value::Mapping(_) => {
+                            return Err(yurl_error!(&format!(
+                                "{} complex object not supported as parameters",
+                                CONTENT_TYPE_FROM
+                            )))
+                        }
+                        serde_yaml::Value::Tagged(_) => {
+                            return Err(yurl_error!(&format!(
+                                "{} complex object not supported as parameters",
+                                CONTENT_TYPE_FROM
+                            )))
+                        }
+                    }
+                }
+                let body: Vec<(&str, &str)> = body.iter().map(|m| (m.0, m.1.as_str())).collect();
                 response = request.send_form(&body[..])?
             }
             ContentType::JSON => response = request.send_json(&self.params)?,
@@ -87,11 +150,43 @@ impl Request {
                     return Err(yurl_error!("file request only support POST"));
                 }
                 let mut multipart = MultipartBuilder::new();
-                for (k, v) in &self.params {
-                    if v.starts_with("FILE(") && v.ends_with(")") {
-                        multipart = multipart.add_file(k, Path::new(&v[5..v.len() - 1]))?;
-                    } else {
-                        multipart = multipart.add_text(k, v)?;
+                for (k, v) in self.params.as_mapping().unwrap() {
+                    match v {
+                        serde_yaml::Value::Null => {
+                            multipart = multipart.add_text(k.as_str().unwrap(), "")?;
+                        }
+                        serde_yaml::Value::Bool(v) => {
+                            multipart = multipart.add_text(k.as_str().unwrap(), &format!("{v}"))?;
+                        }
+                        serde_yaml::Value::Number(v) => {
+                            multipart = multipart.add_text(k.as_str().unwrap(), &format!("{v}"))?;
+                        }
+                        serde_yaml::Value::String(v) => {
+                            if v.starts_with("FILE(") && v.ends_with(")") {
+                                multipart = multipart
+                                    .add_file(k.as_str().unwrap(), Path::new(&v[5..v.len() - 1]))?;
+                            } else {
+                                multipart = multipart.add_text(k.as_str().unwrap(), v)?;
+                            }
+                        }
+                        serde_yaml::Value::Sequence(_) => {
+                            return Err(yurl_error!(&format!(
+                                "{} complex object not supported as parameters",
+                                CONTENT_TYPE_FILE
+                            )))
+                        }
+                        serde_yaml::Value::Mapping(_) => {
+                            return Err(yurl_error!(&format!(
+                                "{} complex object not supported as parameters",
+                                CONTENT_TYPE_FILE
+                            )))
+                        }
+                        serde_yaml::Value::Tagged(_) => {
+                            return Err(yurl_error!(&format!(
+                                "{} complex object not supported as parameters",
+                                CONTENT_TYPE_FILE
+                            )))
+                        }
                     }
                 }
                 let (content_type, data) = multipart.finish()?;
@@ -138,15 +233,20 @@ impl Default for Request {
     fn default() -> Self {
         let mut h = HashMap::new();
         h.insert("Authorization".to_string(), "xxxxxxxxxxxxxxx".to_string());
-        let mut p = HashMap::new();
-        p.insert("name".to_string(), "${var.name}".to_string());
+        // let mut p = HashMap::new();
+        // p.insert("name".to_string(), "${var.name}".to_string());
+        let mut p = Mapping::new();
+        p.insert(
+            serde_yaml::Value::String("name".to_string()),
+            serde_yaml::Value::String("${var.name}".to_string()),
+        );
         Self {
             order: 1,
             name: "example".to_string(),
             url: "http://127.0.0.1:8080/example".to_string(),
             method: Method::GET,
             headers: h,
-            params: p,
+            params: serde_yaml::Value::Mapping(p),
             content_type: ContentType::URLENCODED,
             response_type: ResponseType::JSON,
             response: Default::default(),

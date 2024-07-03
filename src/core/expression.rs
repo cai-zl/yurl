@@ -63,10 +63,10 @@ impl Expression {
 
     pub fn variable_parse(expression: &str) -> Result<String, Box<dyn Error>> {
         let keys: Vec<&str> = expression.split(".").collect();
-        if keys.len() != 2 {
+        if keys.len() < 2 {
             return Err(yurl_error!("variable expression formatting error"));
         }
-        Ok(keys.get(1).unwrap().to_string())
+        Ok(keys[1..].join("."))
     }
 
     pub fn function_parse(expression: &str) -> Result<String, Box<dyn Error>> {

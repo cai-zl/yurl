@@ -3,6 +3,7 @@ use std::fs;
 
 use clap::Args;
 use colored::Colorize;
+use serde_yaml::Mapping;
 
 use crate::cmd::Execute;
 use crate::core::request::{ContentType, Method, Request};
@@ -63,9 +64,14 @@ pub struct GenerateArg {
 
 impl Execute for GenerateArg {
     fn run(self) -> Result<(), Box<dyn Error>> {
-        let mut template: Template = Default::default();
+        let mut template: Template = Template::default();
         template.imports.push("./vars.yaml".to_string());
-        template.vars.insert("name".to_string(), "tom".to_string());
+        let mut vars = Mapping::new();
+        vars.insert(
+            serde_yaml::Value::String("name".to_string()),
+            serde_yaml::Value::String("tom".to_string()),
+        );
+        template.vars = serde_yaml::Value::Mapping(vars);
         match self.type_.as_str() {
             "get" => {
                 let mut request: Request = Default::default();
